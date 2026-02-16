@@ -73,7 +73,7 @@ def parsear_csv(conteudo: bytes) -> List[dict]:
     return linhas
 
 
-@router.post("/upload", response_model=UploadResponse, status_code=202)
+@router.post("/api/upload", response_model=UploadResponse, status_code=202)
 async def upload_csv(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
