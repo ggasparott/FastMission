@@ -42,7 +42,7 @@ function UploadCSV({ onUploadSuccess }) {
 
   const handleUpload = async () => {
     if (!file) {
-      setError('Selecione um arquivo primeiro')
+      setError('Por favor, selecione um arquivo CSV')
       return
     }
 
@@ -50,9 +50,9 @@ function UploadCSV({ onUploadSuccess }) {
     setError(null)
 
     try {
-      console.log('📤 Uploading file:', file.name)
+      console.log('📤 Iniciando upload:', file.name)
       const response = await uploadCSV(file)
-      console.log('✅ Upload success:', response)
+      console.log('✅ Upload concluído:', response)
       onUploadSuccess(response.lote_id)
       setFile(null)
       
@@ -61,10 +61,19 @@ function UploadCSV({ onUploadSuccess }) {
       if (fileInput) fileInput.value = ''
     } catch (err) {
       console.error('❌ Upload error:', err)
-      const errorMessage = err.response?.data?.detail 
-        || err.message 
-        || 'Erro ao fazer upload do arquivo'
-      setError(errorMessage)
+      
+      // Mensagens de erro específicas
+      if (!err.response) {
+        setError('❌ Erro de conexão. Verifique se o backend está rodando ou desabilite extensões de bloqueio (AdBlock, uBlock).')
+      } else if (err.response?.status === 400) {
+        setError(`❌ Arquivo inválido: ${err.response?.data?.detail || 'formato incorreto'}`)
+      } else if (err.response?.status === 413) {
+        setError('❌ Arquivo muito grande. Máximo permitido: 50MB')
+      } else if (err.response?.status === 500) {
+        setError('❌ Erro no servidor. Tente novamente em alguns instantes.')
+      } else {
+        setError(`❌ Erro ao fazer upload: ${err.response?.data?.detail || err.message}`)
+      }
     } finally {
       setUploading(false)
     }

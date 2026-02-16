@@ -18,7 +18,7 @@ function LoteDetalhes() {
   const { data: itens, isLoading: loadingItens } = useQuery({
     queryKey: ['itens', loteId],
     queryFn: () => getLoteItens(loteId),
-    enabled: lote?.status === 'PROCESSADO',
+    enabled: lote?.status === 'CONCLUIDO' || lote?.status === 'PROCESSADO',
   })
 
   const getStatusBadge = (status) => {
@@ -104,7 +104,7 @@ function LoteDetalhes() {
         )}
       </div>
 
-      {lote?.status === 'PROCESSADO' && itens && (
+      {(lote?.status === 'CONCLUIDO' || lote?.status === 'PROCESSADO') && itens && (
         <div className="card">
           <h3 className="text-xl font-semibold mb-4">Resultados da Análise</h3>
           

@@ -73,7 +73,7 @@ def parsear_csv(conteudo: bytes) -> List[dict]:
     return linhas
 
 
-@router.post("/api/upload", response_model=UploadResponse, status_code=202)
+@router.post("/import-csv", response_model=UploadResponse, status_code=202)
 async def upload_csv(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
@@ -297,7 +297,7 @@ async def full_health_check(db: Session = Depends(get_db)):
         "status": "healthy",
         "database": "unknown",
         "redis": "unknown",
-        "environment": os.getenv("ENVIRONMENT", "development")
+        
     }
     
     # Testar banco de dados
