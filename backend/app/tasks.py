@@ -23,23 +23,24 @@ from .database import SessionLocal
 from .models import Lote, ItemCadastral, StatusLote, StatusValidacao
 
 
-def chamar_ai_script(descricao: str, ncm: str) -> dict:
+def chamar_ai_script(descricao: str, ncm: str, cest: str = None) -> dict:
     """
-    Chama o script Python em skills/ via subprocess.
+    Chama o script Python de validação da Reforma Tributária via subprocess.
     
     ⚠️ IMPORTANTE: Mantém lógica de IA separada do código da API.
     """
     # Preparar dados para o script
     entrada = json.dumps({
         "descricao": descricao,
-        "ncm": ncm
+        "ncm": ncm,
+        "cest": cest
     })
     
     # Caminho do script (relativo ao backend/)
     script_path = os.path.join(
         os.path.dirname(os.path.dirname(__file__)),
         "skills",
-        "validate_ncm.py"
+        "validate_reforma.py"
     )
     
     try:
@@ -103,22 +104,37 @@ def processar_lote_task(self, lote_id: str):
         
         print(f"[Celery] Processando {len(itens)} itens do lote {lote_id}")
         
-        # Processar cada item com IA
+        # Processar cada item com IA (Reforma Tributária)
         for idx, item in enumerate(itens, 1):
             try:
-                # Chamar script de IA
-                resultado = chamar_ai_script(item.descricao, item.ncm_original)
+                # Chamar script de IA com validação da Reforma
+                resultado = chamar_ai_script(
+                    item.descricao, 
+                    item.ncm_original,
+                    item.cest_original
+                )
                 
-                # Atualizar item com resultado
+                # Atualizar item com resultado - NCM
                 item.ncm_sugerido = resultado.get('ncm_sugerido')
                 item.status_validacao = StatusValidacao[resultado.get('status', 'ERRO')]
                 item.motivo_divergencia = resultado.get('explicacao')
                 item.confianca_ai = resultado.get('confianca')
+                
+                # Atualizar item com resultado - REFORMA TRIBUTÁRIA
+                item.cest_sugerido = resultado.get('cest_sugerido')
+                item.cest_obrigatorio = resultado.get('cest_obrigatorio')
+                item.regime_tributario = resultado.get('regime_tributario')
+                item.aliquota_ibs = resultado.get('aliquota_ibs')
+                item.aliquota_cbs = resultado.get('aliquota_cbs')
+                item.possui_beneficio_fiscal = resultado.get('possui_beneficio_fiscal')
+                item.tipo_beneficio = resultado.get('tipo_beneficio')
+                item.artigo_legal = resultado.get('artigo_legal')
+                
                 item.data_processamento = datetime.now()
                 
                 db.commit()
                 
-                print(f"[Celery] Item {idx}/{len(itens)} processado: {item.status_validacao}")
+                print(f"[Celery] Item {idx}/{len(itens)} processado: {item.status_validacao} | Regime: {item.regime_tributario}")
                 
             except Exception as e:
                 # Se um item falhar, continuar com os outros

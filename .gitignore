@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Environment
+.env
+.env.local
+.env.prod
+
+# Database
+*.db
+*.sqlite3
+postgres_data/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads
+backend/uploads/
+*.csv
+!test_upload.csv
+
+# Docker
+docker-compose.override.yml
+
+# Node (se criar frontend depois)
+node_modules/
+dist/
+.next/

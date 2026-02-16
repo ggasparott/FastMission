@@ -45,6 +45,7 @@ class Lote(Base):
 class ItemCadastral(Base):
     """
     Cada linha do CSV é um ItemCadastral
+    Foco: Saneamento Cadastral para Reforma Tributária (IBS/CBS)
     """
     __tablename__ = "itens_cadastrais"
 
@@ -54,8 +55,9 @@ class ItemCadastral(Base):
     # Dados originais do CSV
     descricao = Column(String(500), nullable=False)
     ncm_original = Column(String(20), nullable=False)  # ⚠️ STRING, não INT!
+    cest_original = Column(String(10), nullable=True)  # CEST do cadastro atual
     
-    # Resultado da IA
+    # Resultado da IA - NCM
     ncm_sugerido = Column(String(20), nullable=True)
     status_validacao = Column(
         Enum(StatusValidacao), 
@@ -64,6 +66,22 @@ class ItemCadastral(Base):
     )
     motivo_divergencia = Column(Text, nullable=True)
     confianca_ai = Column(Float, nullable=True)  # 0-100
+    
+    # 🆕 REFORMA TRIBUTÁRIA - IBS/CBS
+    cest_sugerido = Column(String(10), nullable=True)
+    cest_obrigatorio = Column(String, nullable=True)  # "SIM", "NAO", "VERIFICAR"
+    
+    # Regime tributário
+    regime_tributario = Column(String(50), nullable=True)  # NORMAL, ALIQUOTA_REDUZIDA, CASHBACK, IMUNE
+    
+    # Alíquotas sugeridas (%)
+    aliquota_ibs = Column(Float, nullable=True)  # Ex: 26.5%
+    aliquota_cbs = Column(Float, nullable=True)  # Ex: 0.0%
+    
+    # Benefícios fiscais
+    possui_beneficio_fiscal = Column(String, nullable=True)  # "SIM", "NAO", "POSSIVEL"
+    tipo_beneficio = Column(String(200), nullable=True)  # "Cesta básica", "Medicamentos", etc
+    artigo_legal = Column(String(100), nullable=True)  # "Art. 18, §1º", etc
     
     data_processamento = Column(DateTime(timezone=True), nullable=True)
     

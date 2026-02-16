@@ -1,6 +1,22 @@
-# FastMission - Saneamento Cadastral MVP
+# FastMission - Saneamento Cadastral para Reforma Tributária 🇧🇷
 
-MVP para auditoria de classificações fiscais (NCM) de produtos usando IA, no contexto da Reforma Tributária brasileira (IBS/CBS).
+**Prepare sua empresa para IBS/CBS com Inteligência Artificial**
+
+Sistema automatizado para auditoria de cadastros de produtos no contexto da **Reforma Tributária Brasileira** (LC 214/2025).
+
+## 💡 O que fazemos
+
+✅ Valida **NCM** e **CEST** de produtos  
+✅ Identifica **benefícios fiscais** automaticamente (cesta básica, medicamentos, educação)  
+✅ Calcula **alíquotas IBS e CBS** aplicáveis  
+✅ Detecta **CEST obrigatório** (evita multas)  
+✅ Estima **economia tributária** com a Reforma  
+
+## 🚀 Tecnologias
+
+- **Backend:** FastAPI + Celery + PostgreSQL + Redis
+- **IA:** Regras de validação da Reforma Tributária (expansível para LLM)
+- **Deploy:** Docker Compose
 
 ## 🚀 Quick Start
 

@@ -89,6 +89,7 @@ async def upload_csv(
             lote_id=lote.id,
             descricao=linha['descricao'].strip(),
             ncm_original=linha['ncm'].strip(),  # String!
+            cest_original=linha.get('cest', '').strip() if linha.get('cest') else None,  # CEST opcional
             status_validacao=StatusValidacao.PENDENTE
         )
         itens.append(item)
@@ -161,3 +162,60 @@ async def listar_lotes(db: Session = Depends(get_db)):
     """
     lotes = db.query(Lote).order_by(Lote.data_upload.desc()).all()
     return lotes
+
+
+@router.get("/lotes/{lote_id}/beneficios-fiscais")
+async def listar_beneficios_fiscais(lote_id: UUID, db: Session = Depends(get_db)):
+    """
+    Lista produtos que podem ter benefício fiscal da Reforma Tributária.
+    Útil para identificar economia potencial com IBS/CBS.
+    """
+    # Buscar itens com benefícios
+    itens = db.query(ItemCadastral).filter(
+        ItemCadastral.lote_id == lote_id,
+        ItemCadastral.possui_beneficio_fiscal.in_(["SIM", "POSSIVEL"])
+    ).all()
+    
+    # Calcular economia estimada (diferença entre alíquota padrão e aplicada)
+    economia_total = 0.0
+    for item in itens:
+        if item.aliquota_ibs is not None:
+            economia_total += (26.5 - item.aliquota_ibs)  # 26.5% = alíquota padrão
+    
+    return {
+        "total_itens": len(itens),
+        "itens_com_beneficio": len(itens),
+        "economia_potencial_ibs": round(economia_total, 2),
+        "beneficios": itens
+    }
+
+
+@router.get("/lotes/{lote_id}/divergencias-reforma")
+async def listar_divergencias_reforma(lote_id: UUID, db: Session = Depends(get_db)):
+    """
+    Lista divergências específicas da Reforma Tributária:
+    - CEST faltando quando obrigatório
+    - Regime tributário não identificado
+    - NCM incompatível com benefício fiscal
+    """
+    from sqlalchemy import or_
+    
+    # Buscar itens com problemas da Reforma
+    itens = db.query(ItemCadastral).filter(
+        ItemCadastral.lote_id == lote_id,
+        or_(
+            ItemCadastral.cest_obrigatorio == "SIM",  # CEST obrigatório
+            ItemCadastral.status_validacao == StatusValidacao.DIVERGENTE
+        )
+    ).all()
+    
+    # Contar tipos de divergências
+    cest_faltando = sum(1 for item in itens if item.cest_obrigatorio == "SIM" and not item.cest_original)
+    regime_invalido = sum(1 for item in itens if not item.regime_tributario or item.regime_tributario == "INVALIDO")
+    
+    return {
+        "total_divergencias": len(itens),
+        "cest_faltando": cest_faltando,
+        "regime_invalido": regime_invalido,
+        "itens": itens
+    }

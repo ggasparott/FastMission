@@ -28,18 +28,54 @@ class LoteStatusResponse(BaseModel):
 
 
 class ItemCadastralResponse(BaseModel):
-    """Response de cada item cadastral"""
+    """Response de cada item cadastral - Reforma Tributária"""
     id: UUID
     descricao: str
+    
+    # NCM
     ncm_original: str
     ncm_sugerido: Optional[str] = None
+    
+    # CEST
+    cest_original: Optional[str] = None
+    cest_sugerido: Optional[str] = None
+    cest_obrigatorio: Optional[str] = None
+    
+    # Status
     status_validacao: str
     motivo_divergencia: Optional[str] = None
     confianca_ai: Optional[float] = None
+    
+    # Reforma Tributária (IBS/CBS)
+    regime_tributario: Optional[str] = None
+    aliquota_ibs: Optional[float] = None
+    aliquota_cbs: Optional[float] = None
+    
+    # Benefícios Fiscais
+    possui_beneficio_fiscal: Optional[str] = None
+    tipo_beneficio: Optional[str] = None
+    artigo_legal: Optional[str] = None
+    
     data_processamento: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class BeneficiosFiscaisResponse(BaseModel):
+    """Response com resumo de benefícios fiscais detectados"""
+    total_itens: int
+    itens_com_beneficio: int
+    economia_potencial_ibs: float
+    beneficios: list[ItemCadastralResponse]
+
+
+class DivergenciasReformaResponse(BaseModel):
+    """Response com divergências específicas da Reforma Tributária"""
+    total_divergencias: int
+    cest_faltando: int
+    regime_invalido: int
+    itens: list[ItemCadastralResponse]
 
 
 class UploadResponse(BaseModel):
