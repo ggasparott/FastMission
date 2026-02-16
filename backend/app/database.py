@@ -12,7 +12,7 @@ load_dotenv()
 # URL de conexão do PostgreSQL
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://fastmission:senha123@localhost:5432/cadastral_db"
+    "postgresql://fastmission:Fastdb2026@postgres:5432/cadastral_db "
 )
 
 # Engine do SQLAlchemy

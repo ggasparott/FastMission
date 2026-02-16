@@ -50,11 +50,21 @@ function UploadCSV({ onUploadSuccess }) {
     setError(null)
 
     try {
+      console.log('📤 Uploading file:', file.name)
       const response = await uploadCSV(file)
+      console.log('✅ Upload success:', response)
       onUploadSuccess(response.lote_id)
       setFile(null)
+      
+      // Resetar input
+      const fileInput = document.getElementById('file-upload')
+      if (fileInput) fileInput.value = ''
     } catch (err) {
-      setError(err.response?.data?.detail || 'Erro ao fazer upload do arquivo')
+      console.error('❌ Upload error:', err)
+      const errorMessage = err.response?.data?.detail 
+        || err.message 
+        || 'Erro ao fazer upload do arquivo'
+      setError(errorMessage)
     } finally {
       setUploading(false)
     }

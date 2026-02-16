@@ -23,18 +23,19 @@ app = FastAPI(
     redoc_url="/redoc" if not IS_PRODUCTION else None,  # Desabilita /redoc em produção
 )
 
-# CORS - Configuração de origens permitidas
-origins = [
-    "http://localhost:5173",  # Frontend dev (Vite)
-    "http://localhost:3000",  # Frontend dev (Next.js)
-]
+# CORS - Configuração dinâmica baseada em variável de ambiente
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
+origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
 
-# Em produção, adicionar domínios reais
-if IS_PRODUCTION:
-    # TODO: Adicionar seu domínio real quando tiver
-    production_origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
-    if production_origins and production_origins[0]:
-        origins.extend(production_origins)
+# Em desenvolvimento, adicionar origens padrão
+if not IS_PRODUCTION:
+    default_origins = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
+    for origin in default_origins:
+        if origin not in origins:
+            origins.append(origin)
 
 app.add_middleware(
     CORSMiddleware,

@@ -24,13 +24,25 @@ router = APIRouter()
 def parsear_csv(conteudo: bytes) -> List[dict]:
     """
     Parse CSV com suporte a múltiplos encodings (UTF-8 e Latin-1)
+    Com validações robustas de tamanho e formato
     """
+    # Validar tamanho (máximo 50MB)
+    MAX_SIZE = 50 * 1024 * 1024
+    if len(conteudo) > MAX_SIZE:
+        raise ValueError(f"Arquivo muito grande. Máximo: 50MB")
+    
+    if len(conteudo) == 0:
+        raise ValueError("Arquivo vazio")
+    
     # Tentar UTF-8 primeiro
     try:
         texto = conteudo.decode('utf-8')
     except UnicodeDecodeError:
         # Fallback para Latin-1 (comum em sistemas brasileiros legados)
-        texto = conteudo.decode('latin-1')
+        try:
+            texto = conteudo.decode('latin-1')
+        except:
+            raise ValueError("Erro ao decodificar arquivo. Use UTF-8 ou Latin-1")
     
     # Parse CSV
     reader = csv.DictReader(io.StringIO(texto))
@@ -42,7 +54,21 @@ def parsear_csv(conteudo: bytes) -> List[dict]:
     
     primeira_linha = linhas[0]
     if 'descricao' not in primeira_linha or 'ncm' not in primeira_linha:
-        raise ValueError("CSV deve conter colunas 'descricao' e 'ncm'")
+        colunas_encontradas = ', '.join(primeira_linha.keys())
+        raise ValueError(f"CSV deve conter colunas 'descricao' e 'ncm'. Encontrado: {colunas_encontradas}")
+    
+    # Validar limite de linhas
+    if len(linhas) > 10000:
+        raise ValueError(f"Máximo de 10.000 itens por lote. Encontrado: {len(linhas)}")
+    
+    # Validar dados linha por linha
+    for idx, linha in enumerate(linhas, start=2):  # linha 1 = header
+        if not linha.get('descricao', '').strip():
+            raise ValueError(f"Linha {idx}: campo 'descricao' é obrigatório")
+        
+        ncm = linha.get('ncm', '').strip().replace('.', '').replace('-', '')
+        if ncm and len(ncm) != 8:
+            raise ValueError(f"Linha {idx}: NCM deve ter 8 dígitos. Encontrado: '{ncm}'")
     
     return linhas
 
@@ -219,3 +245,76 @@ async def listar_divergencias_reforma(lote_id: UUID, db: Session = Depends(get_d
         "regime_invalido": regime_invalido,
         "itens": itens
     }
+
+
+@router.get("/stats")
+async def get_stats(db: Session = Depends(get_db)):
+    """
+    Estatísticas gerais do sistema para o dashboard
+    """
+    from sqlalchemy import func
+    
+    total_lotes = db.query(func.count(Lote.id)).scalar() or 0
+    total_itens = db.query(func.sum(Lote.total_itens)).scalar() or 0
+    
+    lotes_pendentes = db.query(func.count(Lote.id)).filter(
+        Lote.status == StatusLote.PENDENTE
+    ).scalar() or 0
+    
+    lotes_concluidos = db.query(func.count(Lote.id)).filter(
+        Lote.status == StatusLote.CONCLUIDO
+    ).scalar() or 0
+    
+    # Total de divergências
+    total_divergencias = db.query(func.count(ItemCadastral.id)).filter(
+        ItemCadastral.status_validacao == StatusValidacao.DIVERGENTE
+    ).scalar() or 0
+    
+    # Total de benefícios detectados
+    total_beneficios = db.query(func.count(ItemCadastral.id)).filter(
+        ItemCadastral.possui_beneficio_fiscal.in_(["SIM", "POSSIVEL"])
+    ).scalar() or 0
+    
+    return {
+        "totalLotes": total_lotes,
+        "totalItens": int(total_itens),
+        "lotesPendentes": lotes_pendentes,
+        "lotesConcluidos": lotes_concluidos,
+        "divergencias": total_divergencias,
+        "beneficios": total_beneficios,
+        "economia": 0  # TODO: calcular economia real
+    }
+
+
+@router.get("/health/full")
+async def full_health_check(db: Session = Depends(get_db)):
+    """
+    Health check completo com status de todas as dependências
+    """
+    from sqlalchemy import text
+    
+    health_status = {
+        "status": "healthy",
+        "database": "unknown",
+        "redis": "unknown",
+        "environment": os.getenv("ENVIRONMENT", "development")
+    }
+    
+    # Testar banco de dados
+    try:
+        db.execute(text("SELECT 1"))
+        health_status["database"] = "healthy"
+    except Exception as e:
+        health_status["database"] = f"error: {str(e)}"
+        health_status["status"] = "degraded"
+    
+    # Testar Redis/Celery
+    try:
+        from .tasks import celery_app
+        celery_app.broker_connection().ensure_connection(max_retries=1)
+        health_status["redis"] = "healthy"
+    except Exception as e:
+        health_status["redis"] = f"error: {str(e)[:50]}"
+        health_status["status"] = "degraded"
+    
+    return health_status
