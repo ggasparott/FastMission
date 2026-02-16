@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements e instalar dependências Python
+# Copiar requirements
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -18,5 +18,5 @@ COPY . .
 # Expor porta
 EXPOSE 8000
 
-# Comando padrão (será sobrescrito no docker-compose)
+# Comando padrão
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
