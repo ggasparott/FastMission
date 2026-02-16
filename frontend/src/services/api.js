@@ -1,11 +1,29 @@
 import axios from 'axios';
 
-// Pegar URL base SEM /api no final
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Detectar ambiente e usar URL apropriada
+const getApiUrl = () => {
+  // Prioridade 1: Variável de ambiente (setada no build)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // Prioridade 2: Detectar se está em produção pelo hostname
+  if (typeof window !== 'undefined' && window.location.hostname.includes('easypanel.host')) {
+    return 'https://fastmission-fastbackend.utvssk.easypanel.host';
+  }
+  
+  // Prioridade 3: Desenvolvimento local
+  return 'http://localhost:8000';
+};
+
+const API_BASE = getApiUrl();
 
 // Garantir que sempre adiciona /api (e remove duplicatas)
 const API_URL = API_BASE.replace(/\/api\/*$/, '') + '/api';
 
+console.log('🌍 Hostname:', typeof window !== 'undefined' ? window.location.hostname : 'SSR');
+console.log('🔧 Mode:', import.meta.env.MODE);
+console.log('🔗 VITE_API_URL:', import.meta.env.VITE_API_URL);
 console.log('🔗 API Base:', API_BASE);
 console.log('🔗 API URL Final:', API_URL);
 

@@ -3,6 +3,9 @@ FROM node:18-alpine as build
 
 WORKDIR /app
 
+# Aceitar build arg com valor padrão
+ARG VITE_API_URL=https://fastmission-fastbackend.utvssk.easypanel.host
+
 # Copy package files
 COPY package*.json ./
 
@@ -11,6 +14,12 @@ RUN npm ci
 
 # Copy source code
 COPY . .
+
+# Criar .env.production com a URL da API
+RUN echo "VITE_API_URL=${VITE_API_URL}" > .env.production
+
+# Debug - verificar se variável foi setada
+RUN echo "📦 Build com VITE_API_URL:" && cat .env.production
 
 # Build for production
 RUN npm run build
