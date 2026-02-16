@@ -19,8 +19,8 @@ app = FastAPI(
     title="FastMission - Saneamento Cadastral",
     description="API para auditoria de classificações fiscais (NCM) com IA",
     version="1.0.0",
-    docs_url="/docs" if not IS_PRODUCTION else None,  # Desabilita /docs em produção
-    redoc_url="/redoc" if not IS_PRODUCTION else None,  # Desabilita /redoc em produção
+    docs_url="/docs",  # Desabilita /docs em produção
+    redoc_url="/redoc",  # Desabilita /redoc em produção
 )
 
 # CORS - Configuração dinâmica baseada em variável de ambiente
