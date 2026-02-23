@@ -67,7 +67,7 @@ class ItemCadastral(Base):
     motivo_divergencia = Column(Text, nullable=True)
     confianca_ai = Column(Float, nullable=True)  # 0-100
     
-    # 🆕 REFORMA TRIBUTÁRIA - IBS/CBS
+    #REFORMA TRIBUTÁRIA - IBS/CBS
     cest_sugerido = Column(String(10), nullable=True)
     cest_obrigatorio = Column(String, nullable=True)  # "SIM", "NAO", "VERIFICAR"
     

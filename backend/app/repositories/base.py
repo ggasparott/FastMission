@@ -1,9 +1,9 @@
 from typing import TypeVar, Generic, Type, List, Optional
-from unittest import skip
 from sqlalchemy.orm import Session
-from app.models.base import Base
+from sqlalchemy.ext.declarative import DeclarativeMeta
 
-ModelType = TypeVar("ModelType", bound=Base)
+
+ModelType = TypeVar("ModelType", bound=DeclarativeMeta)
 
 class BaseRepository(Generic[ModelType]):
     """
@@ -40,7 +40,7 @@ class BaseRepository(Generic[ModelType]):
         """
         return self.db.query(self.model).filter(self.model.id == id).first()
     
-    def  listar_todos(self, skip: int = 0, limit: int = None) -> List[ModelType]:
+    def listar_todos(self, skip: int = 0, limit: int = None) -> List[ModelType]:
         """
         Lista todos os registros com paginação opcional.
         
