@@ -1,0 +1,17 @@
+FROM python:3.11-slim@sha256:0fb0149cf832db4ae0f4ca644ca4be9e3d47b6d3b3b7d3e7e8c5b5c5b5c5b5c5
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# Porta dummy para o Back4App (ele exige uma porta aberta)
+EXPOSE 8080
+
+# Inicia o Celery Worker + um health check server simples
+CMD celery -A app.tasks worker --loglevel=info --concurrency=2 & \
+    python -c "from http.server import HTTPServer, BaseHTTPRequestHandler; \
+    handler = type('H', (BaseHTTPRequestHandler,), {'do_GET': lambda s: (s.send_response(200), s.end_headers(), s.wfile.write(b'ok'))}); \
+    HTTPServer(('0.0.0.0', 8080), handler).serve_forever()"
