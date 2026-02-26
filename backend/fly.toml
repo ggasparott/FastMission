@@ -1,0 +1,11 @@
+app = "fastmission-worker"
+primary_region = "gru"
+
+[build]
+  dockerfile = "Dockerfile.worker"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
