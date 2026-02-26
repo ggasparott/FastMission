@@ -24,7 +24,7 @@ app = FastAPI(
 )
 
 # CORS - Configuração dinâmica baseada em variável de ambiente
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173", "")
 origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
 
 # Em desenvolvimento, adicionar origens padrão
@@ -32,6 +32,7 @@ if not IS_PRODUCTION:
     default_origins = [
         "http://localhost:5173",
         "http://localhost:3000",
+        "https://luminous-custard-2eed2e.netlify.app/"
     ]
     for origin in default_origins:
         if origin not in origins:
