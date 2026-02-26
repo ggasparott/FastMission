@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     celery_broker_url: str | None = None
     celery_result_backend: str | None = None
     environment: str = "development"
-    cors_origins: str = "http://localhost:5173,https://fastmission-fastfrontend.utvssk.easypanel.host/,https://luminous-custard-2eed2e.netlify.app/"
+    cors_origins: str = "http://localhost:5173,https://luminous-custard-2eed2e.netlify.app,https://fastmission.onrender.com"
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10 MB
     secret_key: str = "CHANGE-ME-IN-PRODUCTION-use-openssl-rand-hex-32"
 
