@@ -8,8 +8,8 @@ const getApiUrl = () => {
   }
   
   // Prioridade 2: Detectar se está em produção pelo hostname
-  if (typeof window !== 'undefined' && window.location.hostname.includes('easypanel.host')) {
-    return 'https://fastmission-fastbackend.utvssk.easypanel.host';
+  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+    return 'https://fastmission.vercel.app';
   }
   
   // Prioridade 3: Desenvolvimento local
