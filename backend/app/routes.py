@@ -124,7 +124,11 @@ async def upload_csv(
     db.commit()
     
     # Agendar processamento (enviar para Redis via Celery)
-    processar_lote_task.delay(str(lote.id))
+    try:
+        processar_lote_task.delay(str(lote.id))
+    except Exception as e:
+        print(f"⚠️ Erro ao enviar task para Celery: {e}")
+        # Não falhar o upload - o lote foi salvo, pode ser reprocessado depois
     
     return UploadResponse(
         lote_id=lote.id,

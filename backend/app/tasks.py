@@ -18,6 +18,17 @@ celery_app = Celery(
     backend=os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 )
 
+# Carregar celeryconfig (SSL para Upstash)
+try:
+    celery_app.config_from_object('celeryconfig')
+except Exception:
+    # Se não encontrar celeryconfig, configurar SSL inline para rediss://
+    import ssl as _ssl
+    broker = os.getenv('CELERY_BROKER_URL', '')
+    if broker.startswith('rediss://'):
+        celery_app.conf.broker_use_ssl = {'ssl_cert_reqs': _ssl.CERT_NONE}
+        celery_app.conf.redis_backend_use_ssl = {'ssl_cert_reqs': _ssl.CERT_NONE}
+
 # Importações do SQLAlchemy (evitar import circular)
 from .database import SessionLocal
 from .models import Lote, ItemCadastral, StatusLote, StatusValidacao
