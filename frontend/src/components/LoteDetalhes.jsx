@@ -10,15 +10,19 @@ function LoteDetalhes() {
   const { data: lote, isLoading: loadingStatus } = useQuery({
     queryKey: ['lote', loteId],
     queryFn: () => getLoteStatus(loteId),
-    refetchInterval: (data) => {
-      return data?.status === 'PENDENTE' ? 5000 : false
+    refetchInterval: (query) => {
+      const status = query.state?.data?.status
+      // Continuar polling enquanto não estiver concluído ou com erro
+      return (status === 'PENDENTE' || status === 'PROCESSANDO') ? 3000 : false
     },
   })
+
+  const isFinished = lote?.status === 'CONCLUIDO' || lote?.status === 'PROCESSADO' || lote?.status === 'ERRO'
 
   const { data: itens, isLoading: loadingItens } = useQuery({
     queryKey: ['itens', loteId],
     queryFn: () => getLoteItens(loteId),
-    enabled: lote?.status === 'CONCLUIDO' || lote?.status === 'PROCESSADO',
+    enabled: isFinished,
   })
 
   const getStatusBadge = (status) => {
@@ -26,7 +30,17 @@ function LoteDetalhes() {
       PENDENTE: {
         color: 'warning',
         icon: Clock,
-        text: 'Processando',
+        text: 'Aguardando...',
+      },
+      PROCESSANDO: {
+        color: 'primary',
+        icon: Loader2,
+        text: 'Processando...',
+      },
+      CONCLUIDO: {
+        color: 'success',
+        icon: CheckCircle,
+        text: 'Concluído',
       },
       PROCESSADO: {
         color: 'success',
@@ -94,7 +108,7 @@ function LoteDetalhes() {
           </div>
         </div>
 
-        {lote?.status === 'PENDENTE' && (
+        {(lote?.status === 'PENDENTE' || lote?.status === 'PROCESSANDO') && (
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className="bg-primary-500 h-2 rounded-full transition-all duration-500"
@@ -104,7 +118,7 @@ function LoteDetalhes() {
         )}
       </div>
 
-      {(lote?.status === 'CONCLUIDO' || lote?.status === 'PROCESSADO') && itens && (
+      {isFinished && itens && itens.length > 0 && (
         <div className="card">
           <h3 className="text-xl font-semibold mb-4">Resultados da Análise</h3>
           
