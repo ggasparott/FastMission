@@ -1,4 +1,4 @@
-app = "fastmission-worker"
+app = "backend-billowing-pond-979"
 primary_region = "gru"
 
 [build]
