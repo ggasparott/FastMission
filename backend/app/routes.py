@@ -254,36 +254,51 @@ async def get_stats(db: Session = Depends(get_db)):
     """
     from sqlalchemy import func
     
-    total_lotes = db.query(func.count(Lote.id)).scalar() or 0
-    total_itens = db.query(func.sum(Lote.total_itens)).scalar() or 0
-    
-    lotes_pendentes = db.query(func.count(Lote.id)).filter(
-        Lote.status == StatusLote.PENDENTE
-    ).scalar() or 0
-    
-    lotes_concluidos = db.query(func.count(Lote.id)).filter(
-        Lote.status == StatusLote.CONCLUIDO
-    ).scalar() or 0
-    
-    # Total de divergências
-    total_divergencias = db.query(func.count(ItemCadastral.id)).filter(
-        ItemCadastral.status_validacao == StatusValidacao.DIVERGENTE
-    ).scalar() or 0
-    
-    # Total de benefícios detectados
-    total_beneficios = db.query(func.count(ItemCadastral.id)).filter(
-        ItemCadastral.possui_beneficio_fiscal.in_(["SIM", "POSSIVEL"])
-    ).scalar() or 0
-    
-    return {
-        "totalLotes": total_lotes,
-        "totalItens": int(total_itens),
-        "lotesPendentes": lotes_pendentes,
-        "lotesConcluidos": lotes_concluidos,
-        "divergencias": total_divergencias,
-        "beneficios": total_beneficios,
-        "economia": 0  # TODO: calcular economia real
-    }
+    try:
+        total_lotes = db.query(func.count(Lote.id)).scalar() or 0
+        total_itens = db.query(func.sum(Lote.total_itens)).scalar() or 0
+        
+        lotes_pendentes = db.query(func.count(Lote.id)).filter(
+            Lote.status == StatusLote.PENDENTE
+        ).scalar() or 0
+        
+        lotes_concluidos = db.query(func.count(Lote.id)).filter(
+            Lote.status == StatusLote.CONCLUIDO
+        ).scalar() or 0
+        
+        # Total de divergências
+        total_divergencias = db.query(func.count(ItemCadastral.id)).filter(
+            ItemCadastral.status_validacao == StatusValidacao.DIVERGENTE
+        ).scalar() or 0
+        
+        # Total de benefícios detectados
+        try:
+            total_beneficios = db.query(func.count(ItemCadastral.id)).filter(
+                ItemCadastral.possui_beneficio_fiscal.in_(["SIM", "POSSIVEL"])
+            ).scalar() or 0
+        except Exception:
+            total_beneficios = 0
+        
+        return {
+            "totalLotes": total_lotes,
+            "totalItens": int(total_itens),
+            "lotesPendentes": lotes_pendentes,
+            "lotesConcluidos": lotes_concluidos,
+            "divergencias": total_divergencias,
+            "beneficios": total_beneficios,
+            "economia": 0  # TODO: calcular economia real
+        }
+    except Exception as e:
+        print(f"Erro em /stats: {e}")
+        return {
+            "totalLotes": 0,
+            "totalItens": 0,
+            "lotesPendentes": 0,
+            "lotesConcluidos": 0,
+            "divergencias": 0,
+            "beneficios": 0,
+            "economia": 0
+        }
 
 
 @router.get("/health/full")

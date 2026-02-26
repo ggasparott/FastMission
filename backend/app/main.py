@@ -8,8 +8,8 @@ import os
 from .routes import router
 from .database import engine, Base
 
-# Criar tabelas (apenas em desenvolvimento - usar Alembic em produção)
-# Base.metadata.create_all(bind=engine)
+# Criar tabelas automaticamente (garante que existem no Neon)
+Base.metadata.create_all(bind=engine)
 
 # Verificar ambiente
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
