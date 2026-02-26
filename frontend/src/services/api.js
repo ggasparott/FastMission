@@ -21,12 +21,6 @@ const API_BASE = getApiUrl();
 // Garantir que sempre adiciona /api (e remove duplicatas)
 const API_URL = API_BASE.replace(/\/api\/*$/, '') + '/api';
 
-console.log('🌍 Hostname:', typeof window !== 'undefined' ? window.location.hostname : 'SSR');
-console.log('🔧 Mode:', import.meta.env.MODE);
-console.log('🔗 VITE_API_URL:', import.meta.env.VITE_API_URL);
-console.log('🔗 API Base:', API_BASE);
-console.log('🔗 API URL Final:', API_URL);
-
 const api = axios.create({
   baseURL: API_URL,
   headers: {
