@@ -1,22 +1,6 @@
 import axios from 'axios';
 
-// Detectar ambiente e usar URL apropriada
-const getApiUrl = () => {
-  // Prioridade 1: Variável de ambiente (setada no build)
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  
-  // Prioridade 2: Detectar se está em produção pelo hostname
-  if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
-    return 'https://fastmission.onrender.com';
-  }
-  
-  // Prioridade 3: Desenvolvimento local
-  return 'http://localhost:8000';
-};
-
-const API_BASE = getApiUrl();
+const API_BASE = 'http://localhost:8000';
 
 // Garantir que sempre adiciona /api (e remove duplicatas)
 const API_URL = API_BASE.replace(/\/api\/*$/, '') + '/api';
@@ -106,6 +90,57 @@ export const listLotes = async (params = {}) => {
     return response.data;
   } catch (error) {
     console.error('❌ Erro ao listar lotes:', error);
+    throw error;
+  }
+};
+
+// === ITENS (CRUD MANUAL) ===
+export const listItens = async (params = {}) => {
+  try {
+    const response = await api.get('/itens', { params });
+    return response.data;
+  } catch (error) {
+    console.error('❌ Erro ao listar itens:', error);
+    throw error;
+  }
+};
+
+export const getItemById = async (itemId) => {
+  try {
+    const response = await api.get(`/itens/${itemId}`);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Erro ao buscar item:', error);
+    throw error;
+  }
+};
+
+export const createItem = async (payload) => {
+  try {
+    const response = await api.post('/itens', payload);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Erro ao criar item:', error);
+    throw error;
+  }
+};
+
+export const updateItem = async (itemId, payload) => {
+  try {
+    const response = await api.put(`/itens/${itemId}`, payload);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Erro ao atualizar item:', error);
+    throw error;
+  }
+};
+
+export const deleteItem = async (itemId) => {
+  try {
+    const response = await api.delete(`/itens/${itemId}`);
+    return response.status;
+  } catch (error) {
+    console.error('❌ Erro ao deletar item:', error);
     throw error;
   }
 };
