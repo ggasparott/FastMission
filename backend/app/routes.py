@@ -14,9 +14,12 @@ from .schemas import (
     UploadResponse, 
     LoteResponse, 
     LoteStatusResponse, 
-    ItemCadastralResponse
+    ItemCadastralResponse,
+    ItemCreateSchema,
+    ItemUpdateSchema
 )
 from .tasks import processar_lote_task
+from .services.item_service import ItemService, ItemNotFoundException, ItemValidationError
 
 router = APIRouter()
 
@@ -166,7 +169,7 @@ async def get_status(lote_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.get("/lotes/{lote_id}/itens", response_model=List[ItemCadastralResponse])
-async def listar_itens(
+async def listar_itens_lote(
     lote_id: UUID, 
     apenas_divergentes: bool = False,
     db: Session = Depends(get_db)
@@ -337,3 +340,123 @@ async def full_health_check(db: Session = Depends(get_db)):
         health_status["status"] = "degraded"
     
     return health_status
+
+
+# =============================================================================
+# CRUD MANUAL DE ITENS - Cadastro no Varejo
+# TODO: Implemente o corpo de cada endpoint
+# =============================================================================
+
+@router.post("/itens", response_model=ItemCadastralResponse, status_code=201)
+async def criar_item(item: ItemCreateSchema, db: Session = Depends(get_db)):
+    """
+    Cria um item cadastral manualmente.
+    
+    Lógica:
+    1. Instanciar o service:  service = ItemService(db)
+    2. Chamar:                novo_item = service.criar_item(item.model_dump())
+    3. Retornar:              return novo_item
+    
+    Tratamento de erros (try/except):
+    - ItemValidationError → raise HTTPException(status_code=400, detail=str(e))
+    - Exception genérica  → raise HTTPException(status_code=500, detail="Erro interno")
+    """
+    try:
+        service = ItemService(db)
+        novo_item = service.criar_item(item.model_dump())
+        return novo_item
+    except ItemValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Erro Interno")   
+
+
+
+@router.get("/itens", response_model=List[ItemCadastralResponse])
+async def listar_itens(
+    skip: int = 0,
+    limit: int = 50,
+    sku: str = None,
+    ncm: str = None,
+    cfop: str = None,
+    possui_st: str = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Lista itens com filtros opcionais via query params.
+    
+    Exemplos de chamada:
+    - GET /api/itens                          → todos (paginado)
+    - GET /api/itens?sku=SKU-001              → filtrar por SKU
+    - GET /api/itens?ncm=18063110&possui_st=SIM → filtrar por NCM com ST
+    
+    Lógica:
+    1. service = ItemService(db)
+    2. return service.listar_itens(skip, limit, sku, ncm, cfop, possui_st)
+    """
+    service = ItemService(db)
+    return service.listar_itens(skip, limit, sku, ncm, cfop, possui_st)
+
+@router.get("/itens/{item_id}", response_model=ItemCadastralResponse)
+async def buscar_item(item_id: UUID, db: Session = Depends(get_db)):
+    """
+    Busca um item pelo ID.
+    
+    Lógica:
+    1. service = ItemService(db)
+    2. return service.buscar_item_por_id(str(item_id))
+    
+    Tratamento de erros:
+    - ItemNotFoundException → raise HTTPException(status_code=404, detail=str(e))
+    """
+    try:
+        service = ItemService(db)
+        return service.buscar_item_por_id(str(item_id))
+    except ItemNotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.put("/itens/{item_id}", response_model=ItemCadastralResponse)
+async def atualizar_item(item_id: UUID, item: ItemUpdateSchema, db: Session = Depends(get_db)):
+    """
+    Atualiza um item existente.
+    
+    Lógica:
+    1. service = ItemService(db)
+    2. dados = item.model_dump(exclude_unset=True)
+       ↑ exclude_unset=True: só envia campos que foram passados no JSON
+    3. return service.atualizar_item(str(item_id), dados)
+    
+    Tratamento de erros:
+    - ItemNotFoundException  → 404
+    - ItemValidationError    → 400
+    """
+    try:
+        service = ItemService(db)
+        dados = item.model_dump(exclude_unset=True)
+        return service.atualizar_item(str(item_id), dados)
+    except ItemNotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ItemValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Erro interno")
+
+@router.delete("/itens/{item_id}", status_code=204)
+async def deletar_item(item_id: UUID, db: Session = Depends(get_db)):
+    """
+    Deleta um item pelo ID.
+    
+    Lógica:
+    1. service = ItemService(db)
+    2. service.deletar_item(str(item_id))
+    3. return None  (204 não retorna corpo)
+    
+    Tratamento de erros:
+    - ItemNotFoundException → 404
+    """
+    try:
+        service = ItemService(db)
+        service.deletar_item(str(item_id))
+        return None
+    except ItemNotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))

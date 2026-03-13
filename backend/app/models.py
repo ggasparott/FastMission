@@ -50,12 +50,26 @@ class ItemCadastral(Base):
     __tablename__ = "itens_cadastrais"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    lote_id = Column(UUID(as_uuid=True), ForeignKey("lotes.id"), nullable=False)
+    lote_id = Column(UUID(as_uuid=True), ForeignKey("lotes.id"), nullable=True)  # Nullable: item pode existir sem lote
     
-    # Dados originais do CSV
-    descricao = Column(String(500), nullable=False)
-    ncm_original = Column(String(20), nullable=False)  # ⚠️ STRING, não INT!
-    cest_original = Column(String(10), nullable=True)  # CEST do cadastro atual
+    # ========== BLOCO 1: IDENTIFICAÇÃO ==========
+    sku = Column(String(50), nullable=True, index=True)         # Código interno da empresa
+    ean_gtin = Column(String(14), nullable=True, index=True)    # Código de barras (8, 12, 13 ou 14 dígitos)
+    descricao = Column(String(500), nullable=False)             # Descrição curta (ex: "Chocolate ao Leite 200g")
+    descricao_longa = Column(Text, nullable=True)               # Descrição detalhada para NF-e
+    
+    # ========== BLOCO 2: CLASSIFICAÇÃO FISCAL ==========
+    ncm_original = Column(String(20), nullable=False)           # NCM do cadastro (8 dígitos, ex: "18063110")
+    cest_original = Column(String(10), nullable=True)           # CEST do cadastro (7 dígitos, ex: "1704600")
+    cfop = Column(String(4), nullable=True)                     # CFOP padrão (ex: "5102" = venda interna)
+    
+    # ========== BLOCO 3: TRIBUTAÇÃO ==========
+    origem_produto = Column(Integer, nullable=True)             # 0=Nacional, 1=Estrangeira importação direta, 2=Estrangeira mercado interno... até 8
+    cst_csosn = Column(String(4), nullable=True)                # CST (3 dígitos) ou CSOSN (4 dígitos Simples Nacional)
+    aliquota_icms = Column(Float, nullable=True)                # Alíquota ICMS % (ex: 18.0, 12.0, 7.0)
+    aliquota_pis = Column(Float, nullable=True)                 # Alíquota PIS % (ex: 1.65)
+    aliquota_cofins = Column(Float, nullable=True)              # Alíquota COFINS % (ex: 7.60)
+    possui_st = Column(String(3), nullable=True)                # "SIM" ou "NAO" - Substituição Tributária
     
     # Resultado da IA - NCM
     ncm_sugerido = Column(String(20), nullable=True)
@@ -87,3 +101,12 @@ class ItemCadastral(Base):
     
     # Relacionamento N:1 com Lote
     lote = relationship("Lote", back_populates="itens")
+
+
+class NCMOficial(Base):
+    """Tabela de referência oficial de NCM para validação."""
+    __tablename__ = "ncm_oficiais"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    codigo = Column(String(8), nullable=False, unique=True, index=True)
+    descricao = Column(Text, nullable=False)

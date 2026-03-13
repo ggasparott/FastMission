@@ -260,3 +260,126 @@ class ItemRepository(BaseRepository[ItemCadastral]):
         self.db.add_all(itens)
         self.db.commit()
         return len(itens)
+    
+    # =================================================================
+    # MÉTODOS PARA CADASTRO MANUAL DE ITENS (MVP Varejo)
+    # TODO: Implemente os métodos abaixo
+    # =================================================================
+    
+    def buscar_por_sku(self, sku: str) -> Optional[ItemCadastral]:
+        """
+        Busca um item pelo SKU (código interno).
+        Usado para verificar duplicidade antes de cadastrar.
+        
+        Lógica:
+        1. self.db.query(ItemCadastral)
+        2. .filter(ItemCadastral.sku == sku)
+        3. .first()  → retorna 1 ou None
+        """
+        return self.db.query(ItemCadastral).filter(ItemCadastral.sku == sku).first()
+    
+    def buscar_por_ean(self, ean: str) -> Optional[ItemCadastral]:
+        """
+        Busca um item pelo EAN/GTIN (código de barras).
+        
+        Lógica: Mesmo padrão do buscar_por_sku, mas filtra por ean_gtin
+        """
+        return self.db.query(ItemCadastral).filter(ItemCadastral.ean_gtin == ean).first()   
+
+    
+    def listar_com_filtros(
+        self, 
+        skip: int = 0, 
+        limit: int = 50,
+        sku: Optional[str] = None,
+        ncm: Optional[str] = None,
+        cfop: Optional[str] = None,
+        possui_st: Optional[str] = None
+    ) -> List[ItemCadastral]:
+        """
+        Lista itens com filtros opcionais para busca avançada.
+        
+        Lógica:
+        1. query = self.db.query(ItemCadastral)
+        2. Para CADA filtro que não for None, adicionar .filter():
+           - if sku:   query = query.filter(ItemCadastral.sku == sku)
+           - if ncm:   query = query.filter(ItemCadastral.ncm_original == ncm)
+           - if cfop:  query = query.filter(ItemCadastral.cfop == cfop)
+           - if possui_st: query = query.filter(ItemCadastral.possui_st == possui_st)
+        3. Aplicar .offset(skip).limit(limit)
+        4. Retornar query.all()
+        """
+        query = self.db.query(ItemCadastral)
+        if sku: 
+            query = query.filter(ItemCadastral.sku == sku)   
+            
+        if ncm: 
+            query = query.filter(ItemCadastral.ncm_original == ncm)    
+            
+        if cfop: 
+            query = query.filter(ItemCadastral.cfop == cfop)
+            
+        if possui_st is not None: 
+            query = query.filter(ItemCadastral.possui_st == possui_st)    
+            
+        return query.offset(skip).limit(limit).all()
+    def criar_item_manual(self, dados: dict) -> ItemCadastral:
+        """
+        Cria um item cadastral manualmente (não via CSV).
+        
+        Lógica:
+        1. item = ItemCadastral(**dados)  → cria o objeto com os dados do dict
+        2. self.db.add(item)              → adiciona na sessão
+        3. self.db.commit()               → persiste no banco
+        4. self.db.refresh(item)          → recarrega com dados do banco (ex: id gerado)
+        5. return item
+        """
+        item = ItemCadastral(**dados)
+        self.db.add(item)
+        self.db.commit()
+        self.db.refresh(item)
+        return item
+
+    def atualizar_item(self, item_id: str, dados: dict) -> Optional[ItemCadastral]:
+        """
+        Atualiza campos de um item existente.
+        
+        Lógica:
+        1. item = self.buscar_por_id(item_id)  → método herdado do BaseRepository
+        2. Se item for None, return None
+        3. Para cada (campo, valor) em dados.items():
+           - if valor is not None:
+           -     setattr(item, campo, valor)   → atualiza dinamicamente
+        4. self.db.commit()
+        5. self.db.refresh(item)
+        6. return item
+        """
+        item = self.buscar_por_id(item_id)
+        if item is None:
+            return None
+
+        for campo, valor in dados.items():
+            if valor is not None and hasattr(item, campo):
+                setattr(item, campo, valor)
+
+        self.db.commit()
+        self.db.refresh(item)
+        return item
+    
+    def deletar_item(self, item_id: str) -> bool:
+        """
+        Deleta um item pelo ID.
+        
+        Lógica:
+        1. item = self.buscar_por_id(item_id)
+        2. Se item for None, return False
+        3. self.db.delete(item)
+        4. self.db.commit()
+        5. return True
+        """
+        item = self.buscar_por_id(item_id)
+        if item is None:
+            return False
+        self.db.delete(item)
+        self.db.commit()
+        return True

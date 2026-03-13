@@ -468,3 +468,179 @@ class ItemService:
             raise ItemNotFoundException(f"Erro ao atualizar item {item_id}")
         
         return item_atualizado
+    
+    # =================================================================
+    # CRUD MANUAL - Cadastro de Item no Varejo
+    # TODO: Implemente os métodos abaixo
+    # =================================================================
+    
+    def criar_item(self, dados: dict) -> ItemCadastral:
+        """
+        Cria um novo item cadastral manualmente.
+        
+        Lógica:
+        1. Verificar duplicidade de SKU (se informado):
+           - sku = dados.get("sku")
+           - if sku and self.item_repo.buscar_por_sku(sku):
+           -     raise ItemValidationError(f"SKU '{sku}' já cadastrado")
+            
+        2. Verificar duplicidade de EAN (se informado):
+           - ean = dados.get("ean_gtin")
+           - if ean and self.item_repo.buscar_por_ean(ean):
+           -     raise ItemValidationError(f"EAN '{ean}' já cadastrado")
+        
+        3. Mapear campos do schema para o model:
+           - item_dados = {
+           -     "descricao": dados["descricao"],
+           -     "ncm_original": dados["ncm"],        ← note: schema usa "ncm", model usa "ncm_original"
+           -     "cest_original": dados.get("cest"),   ← schema usa "cest", model usa "cest_original"
+           -     "sku": dados.get("sku"),
+           -     "ean_gtin": dados.get("ean_gtin"),
+           -     "descricao_longa": dados.get("descricao_longa"),
+           -     "cfop": dados.get("cfop"),
+           -     "origem_produto": dados.get("origem_produto"),
+           -     "cst_csosn": dados.get("cst_csosn"),
+           -     "aliquota_icms": dados.get("aliquota_icms"),
+           -     "aliquota_pis": dados.get("aliquota_pis"),
+           -     "aliquota_cofins": dados.get("aliquota_cofins"),
+           -     "possui_st": dados.get("possui_st"),
+           -     "status_validacao": StatusValidacao.PENDENTE,
+           - }
+        
+        4. return self.item_repo.criar_item_manual(item_dados)
+        """
+        sku = dados.get("sku")
+        if sku and  self.item_repo.buscar_por_sku(sku):
+            raise ItemValidationError(f"SKU '{sku}' já cadastrado")
+        
+        ean = dados.get("ean_gtin")
+        if ean and self.item_repo.buscar_por_ean(ean):
+            raise ItemValidationError(f"EAN '{ean}' já cadastrado")
+
+        item_dados = {
+            "descricao": dados["descricao"],
+            "ncm_original": dados["ncm"],        
+            "cest_original": dados.get("cest"),   
+            "sku": dados.get("sku"),
+            "ean_gtin": dados.get("ean_gtin"),
+            "descricao_longa": dados.get("descricao_longa"),
+            "cfop": dados.get("cfop"),
+            "origem_produto": dados.get("origem_produto"),
+            "cst_csosn": dados.get("cst_csosn"),
+            "aliquota_icms": dados.get("aliquota_icms"),
+            "aliquota_pis": dados.get("aliquota_pis"),
+            "aliquota_cofins": dados.get("aliquota_cofins"),
+            "possui_st": dados.get("possui_st"),
+            "status_validacao": StatusValidacao.PENDENTE,
+        }
+        return self.item_repo.criar_item_manual(item_dados)
+
+    def atualizar_item(self, item_id: str, dados: dict) -> ItemCadastral:
+        """
+        Atualiza um item existente.
+        
+        Lógica:
+        1. Verificar se o item existe:
+           - item = self.item_repo.buscar_por_id(item_id)
+           - if not item: raise ItemNotFoundException(...)
+        
+        2. Se SKU está sendo alterado, verificar duplicidade:
+           - novo_sku = dados.get("sku")
+           - if novo_sku and novo_sku != item.sku:
+           -     existente = self.item_repo.buscar_por_sku(novo_sku)
+           -     if existente: raise ItemValidationError(...)
+        
+        3. Se EAN está sendo alterado, verificar duplicidade:
+           - (mesmo padrão do SKU)
+        
+        4. Mapear campos (atenção: "ncm" → "ncm_original", "cest" → "cest_original")
+           - updates = {}
+           - if "descricao" in dados and dados["descricao"] is not None:
+           -     updates["descricao"] = dados["descricao"]
+           - if "ncm" in dados and dados["ncm"] is not None:
+           -     updates["ncm_original"] = dados["ncm"]
+           - ... (repetir para todos os campos) ...
+        
+        5. return self.item_repo.atualizar_item(item_id, updates)
+        """
+        item = self.item_repo.buscar_por_id(item_id)
+        if not item: raise ItemNotFoundException("O item não foi encontrado")
+
+        novo_sku = dados.get("sku")
+        if novo_sku and novo_sku != item.sku:
+            if self.item_repo.buscar_por_sku(novo_sku):
+                raise ItemValidationError(f"SKU '{novo_sku}' já cadastrado")
+            
+
+        novo_ean = dados.get("ean_gtin")
+        if novo_ean and novo_ean != item.ean_gtin:
+            if self.item_repo.buscar_por_ean(novo_ean):
+                raise ItemValidationError(f"EAN '{novo_ean}' já cadastrado")
+
+        updates = {}
+        if "descricao" in dados and dados["descricao"] is not None:
+            updates["descricao"] = dados["descricao"]
+        if "ncm" in dados and dados["ncm"] is not None:
+            updates["ncm_original"] = dados["ncm"]
+        if "cest" in dados and dados["cest"] is not None:
+            updates["cest_original"] = dados["cest"]
+        if "sku" in dados and dados["sku"] is not None:
+            updates["sku"] = dados["sku"]
+        if "ean_gtin" in dados and dados["ean_gtin"] is not None:
+            updates["ean_gtin"] = dados["ean_gtin"]
+        if "descricao_longa" in dados and dados["descricao_longa"] is not None:
+            updates["descricao_longa"] = dados["descricao_longa"]
+        if "cfop" in dados and dados["cfop"] is not None:
+            updates["cfop"] = dados["cfop"]
+        if "origem_produto" in dados and dados["origem_produto"] is not None:
+            updates["origem_produto"] = dados["origem_produto"]
+        if "cst_csosn" in dados and dados["cst_csosn"] is not None:
+            updates["cst_csosn"] = dados["cst_csosn"]
+        if "aliquota_icms" in dados and dados["aliquota_icms"] is not None:
+            updates["aliquota_icms"] = dados["aliquota_icms"]
+        if "aliquota_pis" in dados and dados["aliquota_pis"] is not None:
+            updates["aliquota_pis"] = dados["aliquota_pis"]
+        if "aliquota_cofins" in dados and dados["aliquota_cofins"] is not None:
+            updates["aliquota_cofins"] = dados["aliquota_cofins"]
+        if "possui_st" in dados and dados["possui_st"] is not None:
+            updates["possui_st"] = dados["possui_st"]
+
+        return self.item_repo.atualizar_item(item_id, updates)
+    
+    def deletar_item(self, item_id: str) -> bool:
+        """
+        Deleta um item.
+        
+        Lógica:
+        1. Verificar se existe:
+           - if not self.item_repo.existe(item_id):
+           -     raise ItemNotFoundException(...)
+        2. return self.item_repo.deletar_item(item_id)
+        """
+        if not self.item_repo.existe(item_id):
+            raise ItemNotFoundException("O item não foi encontrado")
+        return self.item_repo.deletar_item(item_id)
+    
+    def listar_itens(
+        self, 
+        skip: int = 0, 
+        limit: int = 50,
+        sku: Optional[str] = None,
+        ncm: Optional[str] = None,
+        cfop: Optional[str] = None,
+        possui_st: Optional[str] = None
+    ) -> List[ItemCadastral]:
+        """
+        Lista itens com filtros opcionais.
+        
+        Lógica:
+        1. Simplesmente delegar para o repository:
+           return self.item_repo.listar_com_filtros(
+               skip=skip, limit=limit,
+               sku=sku, ncm=ncm, cfop=cfop, possui_st=possui_st
+           )
+        """
+        return self.item_repo.listar_com_filtros(
+            skip=skip, limit=limit,
+            sku=sku, ncm=ncm, cfop=cfop, possui_st=possui_st
+        )
