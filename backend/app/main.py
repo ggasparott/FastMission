@@ -30,9 +30,9 @@ origins = [origin.strip().rstrip("/") for origin in allowed_origins_env.split(",
 # Origens sempre permitidas (dev + prod)
 default_origins = [
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "http://localhost:3000",
-    "https://luminous-custard-2eed2e.netlify.app",
-    "https://fastmission.onrender.com",
+    "http://127.0.0.1:3000",
 ]
 for origin in default_origins:
     if origin not in origins:
