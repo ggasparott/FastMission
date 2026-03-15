@@ -531,6 +531,8 @@ class ItemService:
             "aliquota_pis": dados.get("aliquota_pis"),
             "aliquota_cofins": dados.get("aliquota_cofins"),
             "possui_st": dados.get("possui_st"),
+            "quantidade": dados.get("quantidade"),
+            "valor_unitario": dados.get("valor_unitario"),
             "status_validacao": StatusValidacao.PENDENTE,
         }
         return self.item_repo.criar_item_manual(item_dados)
@@ -604,6 +606,10 @@ class ItemService:
             updates["aliquota_cofins"] = dados["aliquota_cofins"]
         if "possui_st" in dados and dados["possui_st"] is not None:
             updates["possui_st"] = dados["possui_st"]
+        if "quantidade" in dados and dados["quantidade"] is not None:
+            updates["quantidade"] = dados["quantidade"]
+        if "valor_unitario" in dados and dados["valor_unitario"] is not None:
+            updates["valor_unitario"] = dados["valor_unitario"]
 
         return self.item_repo.atualizar_item(item_id, updates)
     

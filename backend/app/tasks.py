@@ -30,7 +30,15 @@ if broker.startswith('rediss://'):
     celery_app.conf.redis_backend_use_ssl = {'ssl_cert_reqs': _ssl.CERT_NONE}
 
 
-def chamar_ai_script(descricao: str, ncm: str, cest: str = None) -> dict:
+def chamar_ai_script(
+    descricao: str,
+    ncm: str,
+    cest: str = None,
+    regime_empresa: str = "LUCRO_REAL",
+    uf_origem: str = "SP",
+    uf_destino: str = "SP",
+    cnae_principal: str = "",
+) -> dict:
     """
     Chama o script Python de validação da Reforma Tributária via subprocess.
     
@@ -40,7 +48,11 @@ def chamar_ai_script(descricao: str, ncm: str, cest: str = None) -> dict:
     entrada = json.dumps({
         "descricao": descricao,
         "ncm": ncm,
-        "cest": cest
+        "cest": cest,
+        "regime_empresa": regime_empresa,
+        "uf_origem": uf_origem,
+        "uf_destino": uf_destino,
+        "cnae_principal": cnae_principal,
     })
     
     # Caminho do script (relativo ao backend/)
@@ -71,6 +83,7 @@ def chamar_ai_script(descricao: str, ncm: str, cest: str = None) -> dict:
             "ncm_sugerido": ncm,
             "status": "ERRO",
             "explicacao": "Timeout ao processar item (>30s)",
+            "justificativa": "Timeout na chamada do agente.",
             "confianca": 0
         }
     except Exception as e:
@@ -78,8 +91,61 @@ def chamar_ai_script(descricao: str, ncm: str, cest: str = None) -> dict:
             "ncm_sugerido": ncm,
             "status": "ERRO",
             "explicacao": f"Erro ao chamar IA: {str(e)}",
+            "justificativa": "Falha no subprocess da IA.",
             "confianca": 0
         }
+
+
+def calcular_comparativo_fiscal(item: ItemCadastral, resultado: dict, regime_empresa: str) -> dict:
+    if regime_empresa == "SIMPLES":
+        icms_default = 3.5
+        pis_default = 0.0
+        cofins_default = 0.0
+    else:
+        icms_default = 18.0
+        pis_default = 1.65
+        cofins_default = 7.60
+
+    aliquota_icms = item.aliquota_icms if item.aliquota_icms is not None else icms_default
+    aliquota_pis = item.aliquota_pis if item.aliquota_pis is not None else pis_default
+    aliquota_cofins = item.aliquota_cofins if item.aliquota_cofins is not None else cofins_default
+
+    carga_atual_percentual = aliquota_icms + aliquota_pis + aliquota_cofins
+    possui_st = (item.possui_st or "").upper() == "SIM"
+    if possui_st:
+        carga_atual_percentual += 4.0
+
+    aliquota_ibs = float(resultado.get("aliquota_ibs") or 0)
+    aliquota_cbs = float(resultado.get("aliquota_cbs") or 0)
+    carga_reforma_percentual = aliquota_ibs + aliquota_cbs
+
+    quantidade = item.quantidade if item.quantidade is not None else 0
+    valor_unitario = item.valor_unitario if item.valor_unitario is not None else 0
+    valor_base_calculo = quantidade * valor_unitario
+    if valor_base_calculo <= 0:
+        valor_base_calculo = 100.0
+
+    valor_atual_estimado = valor_base_calculo * (carga_atual_percentual / 100)
+    valor_reforma_estimado = valor_base_calculo * (carga_reforma_percentual / 100)
+    diferenca_absoluta = valor_reforma_estimado - valor_atual_estimado
+    diferenca_percentual = (diferenca_absoluta / valor_atual_estimado * 100) if valor_atual_estimado > 0 else 0
+
+    confianca = float(resultado.get("confianca") or 0)
+    faixa = max(0.03, ((100 - confianca) / 100) * 0.20)
+    faixa_incerteza_min = valor_reforma_estimado * (1 - faixa)
+    faixa_incerteza_max = valor_reforma_estimado * (1 + faixa)
+
+    return {
+        "carga_atual_percentual": round(carga_atual_percentual, 2),
+        "carga_reforma_percentual": round(carga_reforma_percentual, 2),
+        "valor_base_calculo": round(valor_base_calculo, 2),
+        "valor_atual_estimado": round(valor_atual_estimado, 2),
+        "valor_reforma_estimado": round(valor_reforma_estimado, 2),
+        "diferenca_absoluta": round(diferenca_absoluta, 2),
+        "diferenca_percentual": round(diferenca_percentual, 2),
+        "faixa_incerteza_min": round(faixa_incerteza_min, 2),
+        "faixa_incerteza_max": round(faixa_incerteza_max, 2),
+    }
 
 
 @celery_app.task(bind=True, max_retries=3)
@@ -118,24 +184,45 @@ def processar_lote_task(self, lote_id: str):
                 resultado = chamar_ai_script(
                     item.descricao, 
                     item.ncm_original,
-                    item.cest_original
+                    item.cest_original,
+                    regime_empresa=lote.regime_empresa or "LUCRO_REAL",
+                    uf_origem=lote.uf_origem or "SP",
+                    uf_destino=lote.uf_destino or "SP",
+                    cnae_principal=lote.cnae_principal or "",
                 )
                 
                 # Atualizar item com resultado - NCM
                 item.ncm_sugerido = resultado.get('ncm_sugerido')
-                item.status_validacao = StatusValidacao[resultado.get('status', 'ERRO')]
+                status_raw = (resultado.get('status') or 'DIVERGENTE').upper()
+                if status_raw not in StatusValidacao.__members__:
+                    status_raw = 'DIVERGENTE'
+                item.status_validacao = StatusValidacao[status_raw]
                 item.motivo_divergencia = resultado.get('explicacao')
+                item.justificativa_ai = resultado.get('justificativa')
                 item.confianca_ai = resultado.get('confianca')
                 
                 # Atualizar item com resultado - REFORMA TRIBUTÁRIA
                 item.cest_sugerido = resultado.get('cest_sugerido')
                 item.cest_obrigatorio = resultado.get('cest_obrigatorio')
+                item.cfop_sugerido = resultado.get('cfop_sugerido')
+                item.cst_csosn_sugerido = resultado.get('cst_csosn_sugerido')
                 item.regime_tributario = resultado.get('regime_tributario')
                 item.aliquota_ibs = resultado.get('aliquota_ibs')
                 item.aliquota_cbs = resultado.get('aliquota_cbs')
                 item.possui_beneficio_fiscal = resultado.get('possui_beneficio_fiscal')
                 item.tipo_beneficio = resultado.get('tipo_beneficio')
                 item.artigo_legal = resultado.get('artigo_legal')
+
+                comparativo = calcular_comparativo_fiscal(item, resultado, lote.regime_empresa or "LUCRO_REAL")
+                item.carga_atual_percentual = comparativo['carga_atual_percentual']
+                item.carga_reforma_percentual = comparativo['carga_reforma_percentual']
+                item.valor_base_calculo = comparativo['valor_base_calculo']
+                item.valor_atual_estimado = comparativo['valor_atual_estimado']
+                item.valor_reforma_estimado = comparativo['valor_reforma_estimado']
+                item.diferenca_absoluta = comparativo['diferenca_absoluta']
+                item.diferenca_percentual = comparativo['diferenca_percentual']
+                item.faixa_incerteza_min = comparativo['faixa_incerteza_min']
+                item.faixa_incerteza_max = comparativo['faixa_incerteza_max']
                 
                 item.data_processamento = datetime.now()
                 

@@ -101,6 +101,8 @@ class ItemCreateSchema(BaseModel):
     aliquota_pis: Optional[float] = Field(None, ge=0, le=100, examples=[1.65])
     aliquota_cofins: Optional[float] = Field(None, ge=0, le=100, examples=[7.60])
     possui_st: Optional[str] = Field(None, examples=["SIM"])
+    quantidade: Optional[float] = Field(None, ge=0, examples=[10])
+    valor_unitario: Optional[float] = Field(None, ge=0, examples=[12.5])
 
     # TODO: Implemente os validators abaixo seguindo a lógica indicada
     
@@ -163,6 +165,8 @@ class ItemUpdateSchema(BaseModel):
     aliquota_pis: Optional[float] = Field(None, ge=0, le=100, examples=[1.65])
     aliquota_cofins: Optional[float] = Field(None, ge=0, le=100, examples=[7.60])
     possui_st: Optional[str] = Field(None, examples=["SIM"])
+    quantidade: Optional[float] = Field(None, ge=0, examples=[10])
+    valor_unitario: Optional[float] = Field(None, ge=0, examples=[12.5])
 
     # Validators — reutilizam as mesmas funções auxiliares do ItemCreateSchema
     @field_validator("ean_gtin")
@@ -201,6 +205,10 @@ class LoteResponse(BaseModel):
     status: str
     total_itens: int
     arquivo_nome: str
+    regime_empresa: Optional[str] = None
+    uf_origem: Optional[str] = None
+    uf_destino: Optional[str] = None
+    cnae_principal: Optional[str] = None
     data_upload: datetime
 
     class Config:
@@ -234,18 +242,23 @@ class ItemCadastralResponse(BaseModel):
     cest_sugerido: Optional[str] = None
     cest_obrigatorio: Optional[str] = None
     cfop: Optional[str] = None
+    cfop_sugerido: Optional[str] = None
     
     # Tributação
     origem_produto: Optional[int] = None
     cst_csosn: Optional[str] = None
+    cst_csosn_sugerido: Optional[str] = None
     aliquota_icms: Optional[float] = None
     aliquota_pis: Optional[float] = None
     aliquota_cofins: Optional[float] = None
     possui_st: Optional[str] = None
+    quantidade: Optional[float] = None
+    valor_unitario: Optional[float] = None
     
     # Status
     status_validacao: str
     motivo_divergencia: Optional[str] = None
+    justificativa_ai: Optional[str] = None
     confianca_ai: Optional[float] = None
     
     # Reforma Tributária (IBS/CBS)
@@ -257,6 +270,17 @@ class ItemCadastralResponse(BaseModel):
     possui_beneficio_fiscal: Optional[str] = None
     tipo_beneficio: Optional[str] = None
     artigo_legal: Optional[str] = None
+
+    # Comparativo fiscal
+    carga_atual_percentual: Optional[float] = None
+    carga_reforma_percentual: Optional[float] = None
+    valor_base_calculo: Optional[float] = None
+    valor_atual_estimado: Optional[float] = None
+    valor_reforma_estimado: Optional[float] = None
+    diferenca_absoluta: Optional[float] = None
+    diferenca_percentual: Optional[float] = None
+    faixa_incerteza_min: Optional[float] = None
+    faixa_incerteza_max: Optional[float] = None
     
     data_processamento: Optional[datetime] = None
 
@@ -286,3 +310,19 @@ class UploadResponse(BaseModel):
     status: str
     mensagem: str
     total_itens: int
+
+
+class ComparativoFiscalResponse(BaseModel):
+    lote_id: UUID
+    regime_empresa: Optional[str] = None
+    uf_origem: Optional[str] = None
+    uf_destino: Optional[str] = None
+    cnae_principal: Optional[str] = None
+    total_itens: int
+    total_base_calculo: float
+    total_atual_estimado: float
+    total_reforma_estimado: float
+    diferenca_absoluta: float
+    diferenca_percentual: float
+    faixa_incerteza_min: float
+    faixa_incerteza_max: float

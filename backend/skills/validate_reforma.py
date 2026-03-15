@@ -10,7 +10,15 @@ import sys
 import json
 
 
-def validar_produto_reforma(descricao: str, ncm_original: str, cest_original: str = None) -> dict:
+def validar_produto_reforma(
+    descricao: str,
+    ncm_original: str,
+    cest_original: str = None,
+    regime_empresa: str = "LUCRO_REAL",
+    uf_origem: str = "SP",
+    uf_destino: str = "SP",
+    cnae_principal: str = "",
+) -> dict:
     """
     Valida produto para conformidade com Reforma Tributária (IBS/CBS).
     
@@ -38,11 +46,14 @@ def validar_produto_reforma(descricao: str, ncm_original: str, cest_original: st
         "ncm_sugerido": ncm_original,
         "status": "VALIDO",
         "explicacao": "Classificação fiscal compatível com a descrição.",
+        "justificativa": "Análise por regras fiscais iniciais e padrões de descrição.",
         "confianca": 75,
         
         # CEST
         "cest_sugerido": cest_original,
         "cest_obrigatorio": "NAO",
+        "cfop_sugerido": "5102" if uf_origem == uf_destino else "6102",
+        "cst_csosn_sugerido": "102" if regime_empresa == "SIMPLES" else "000",
         
         # Regime Tributário
         "regime_tributario": "NORMAL",
@@ -52,7 +63,13 @@ def validar_produto_reforma(descricao: str, ncm_original: str, cest_original: st
         # Benefícios
         "possui_beneficio_fiscal": "NAO",
         "tipo_beneficio": None,
-        "artigo_legal": None
+        "artigo_legal": None,
+        "contexto_empresa": {
+            "regime_empresa": regime_empresa,
+            "uf_origem": uf_origem,
+            "uf_destino": uf_destino,
+            "cnae_principal": cnae_principal,
+        },
     }
     
     
@@ -155,6 +172,7 @@ def validar_produto_reforma(descricao: str, ncm_original: str, cest_original: st
         resultado.update({
             "cest_obrigatorio": "SIM",
             "cest_sugerido": "06.001.00" if not cest_original else cest_original,
+            "cst_csosn_sugerido": "060",
             "regime_tributario": "NORMAL",
             "aliquota_ibs": 26.5,
             "confianca": 92
@@ -177,6 +195,7 @@ def validar_produto_reforma(descricao: str, ncm_original: str, cest_original: st
         resultado.update({
             "cest_obrigatorio": "SIM",
             "cest_sugerido": "02.001.00" if not cest_original else cest_original,
+            "cst_csosn_sugerido": "060",
             "regime_tributario": "NORMAL",
             "aliquota_ibs": 26.5,
             "explicacao": "Bebidas alcoólicas: CEST obrigatório + Imposto Seletivo adicional.",
@@ -222,6 +241,11 @@ def validar_produto_reforma(descricao: str, ncm_original: str, cest_original: st
             resultado["ncm_sugerido"] = "8471.30.12"
             resultado["explicacao"] = "Computadores portáteis devem estar no capítulo 84.71."
             resultado["confianca"] = 95
+
+    resultado["justificativa"] = (
+        f"Sugestões considerando regime {regime_empresa}, rota {uf_origem}->{uf_destino} "
+        f"e regras de NCM/CEST por descrição do produto."
+    )
     
     
     return resultado
@@ -239,12 +263,24 @@ def main():
         descricao = entrada.get('descricao', '')
         ncm = entrada.get('ncm', '')
         cest = entrada.get('cest', None)
+        regime_empresa = entrada.get('regime_empresa', 'LUCRO_REAL')
+        uf_origem = entrada.get('uf_origem', 'SP')
+        uf_destino = entrada.get('uf_destino', 'SP')
+        cnae_principal = entrada.get('cnae_principal', '')
         
         if not descricao or not ncm:
             raise ValueError("Entrada inválida: 'descricao' e 'ncm' são obrigatórios")
         
         # Processar
-        resultado = validar_produto_reforma(descricao, ncm, cest)
+        resultado = validar_produto_reforma(
+            descricao=descricao,
+            ncm_original=ncm,
+            cest_original=cest,
+            regime_empresa=regime_empresa,
+            uf_origem=uf_origem,
+            uf_destino=uf_destino,
+            cnae_principal=cnae_principal,
+        )
         
         # Retornar JSON no stdout
         print(json.dumps(resultado, ensure_ascii=False))
@@ -255,9 +291,12 @@ def main():
             "ncm_sugerido": None,
             "status": "ERRO",
             "explicacao": f"Erro interno na validação: {str(e)}",
+            "justificativa": "Falha no processamento da análise.",
             "confianca": 0,
             "cest_sugerido": None,
             "cest_obrigatorio": "NAO",
+            "cfop_sugerido": None,
+            "cst_csosn_sugerido": None,
             "regime_tributario": "NORMAL",
             "aliquota_ibs": 26.5,
             "aliquota_cbs": 0.0,

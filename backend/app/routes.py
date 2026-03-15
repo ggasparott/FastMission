@@ -1,7 +1,7 @@
 """
 Endpoints da API FastAPI
 """
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form
 from sqlalchemy.orm import Session
 from typing import List
 import csv
@@ -16,7 +16,8 @@ from .schemas import (
     LoteStatusResponse, 
     ItemCadastralResponse,
     ItemCreateSchema,
-    ItemUpdateSchema
+    ItemUpdateSchema,
+    ComparativoFiscalResponse,
 )
 from .tasks import processar_lote_task
 from .services.item_service import ItemService, ItemNotFoundException, ItemValidationError
@@ -72,6 +73,20 @@ def parsear_csv(conteudo: bytes) -> List[dict]:
         ncm = linha.get('ncm', '').strip().replace('.', '').replace('-', '')
         if ncm and len(ncm) != 8:
             raise ValueError(f"Linha {idx}: NCM deve ter 8 dígitos. Encontrado: '{ncm}'")
+
+        if linha.get('quantidade'):
+            try:
+                if float(linha.get('quantidade')) < 0:
+                    raise ValueError()
+            except Exception:
+                raise ValueError(f"Linha {idx}: quantidade inválida")
+
+        if linha.get('valor_unitario'):
+            try:
+                if float(linha.get('valor_unitario')) < 0:
+                    raise ValueError()
+            except Exception:
+                raise ValueError(f"Linha {idx}: valor_unitario inválido")
     
     return linhas
 
@@ -79,6 +94,10 @@ def parsear_csv(conteudo: bytes) -> List[dict]:
 @router.post("/import-csv", response_model=UploadResponse, status_code=202)
 async def upload_csv(
     file: UploadFile = File(...),
+    regime_empresa: str = Form(...),
+    uf_origem: str = Form(...),
+    uf_destino: str = Form(...),
+    cnae_principal: str = Form(...),
     db: Session = Depends(get_db)
 ):
     """
@@ -90,6 +109,21 @@ async def upload_csv(
     # Validar arquivo
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Apenas arquivos CSV são aceitos")
+
+    regime_empresa = regime_empresa.strip().upper()
+    uf_origem = uf_origem.strip().upper()
+    uf_destino = uf_destino.strip().upper()
+    cnae_principal = cnae_principal.strip()
+
+    regimes_validos = {"SIMPLES", "LUCRO_PRESUMIDO", "LUCRO_REAL"}
+    if regime_empresa not in regimes_validos:
+        raise HTTPException(status_code=400, detail="regime_empresa inválido")
+
+    if len(uf_origem) != 2 or len(uf_destino) != 2:
+        raise HTTPException(status_code=400, detail="UF origem/destino devem conter 2 caracteres")
+
+    if not cnae_principal:
+        raise HTTPException(status_code=400, detail="cnae_principal é obrigatório")
     
     # Ler e parsear CSV
     conteudo = await file.read()
@@ -105,7 +139,11 @@ async def upload_csv(
     lote = Lote(
         arquivo_nome=file.filename,
         status=StatusLote.PENDENTE,
-        total_itens=len(linhas)
+        total_itens=len(linhas),
+        regime_empresa=regime_empresa,
+        uf_origem=uf_origem,
+        uf_destino=uf_destino,
+        cnae_principal=cnae_principal,
     )
     db.add(lote)
     db.commit()
@@ -119,6 +157,8 @@ async def upload_csv(
             descricao=linha['descricao'].strip(),
             ncm_original=linha['ncm'].strip(),  # String!
             cest_original=linha.get('cest', '').strip() if linha.get('cest') else None,  # CEST opcional
+            quantidade=float(linha.get('quantidade')) if linha.get('quantidade') else None,
+            valor_unitario=float(linha.get('valor_unitario')) if linha.get('valor_unitario') else None,
             status_validacao=StatusValidacao.PENDENTE
         )
         itens.append(item)
@@ -195,6 +235,56 @@ async def listar_lotes(db: Session = Depends(get_db)):
     """
     lotes = db.query(Lote).order_by(Lote.data_upload.desc()).all()
     return lotes
+
+
+@router.get("/lotes/{lote_id}/comparativo", response_model=ComparativoFiscalResponse)
+async def comparativo_fiscal_lote(lote_id: UUID, db: Session = Depends(get_db)):
+    lote = db.query(Lote).filter(Lote.id == lote_id).first()
+    if not lote:
+        raise HTTPException(status_code=404, detail="Lote não encontrado")
+
+    itens = db.query(ItemCadastral).filter(ItemCadastral.lote_id == lote_id).all()
+    if not itens:
+        return ComparativoFiscalResponse(
+            lote_id=lote_id,
+            regime_empresa=lote.regime_empresa,
+            uf_origem=lote.uf_origem,
+            uf_destino=lote.uf_destino,
+            cnae_principal=lote.cnae_principal,
+            total_itens=0,
+            total_base_calculo=0,
+            total_atual_estimado=0,
+            total_reforma_estimado=0,
+            diferenca_absoluta=0,
+            diferenca_percentual=0,
+            faixa_incerteza_min=0,
+            faixa_incerteza_max=0,
+        )
+
+    total_base = sum((item.valor_base_calculo or 0) for item in itens)
+    total_atual = sum((item.valor_atual_estimado or 0) for item in itens)
+    total_reforma = sum((item.valor_reforma_estimado or 0) for item in itens)
+    total_min = sum((item.faixa_incerteza_min or 0) for item in itens)
+    total_max = sum((item.faixa_incerteza_max or 0) for item in itens)
+
+    diferenca_abs = total_reforma - total_atual
+    diferenca_pct = ((diferenca_abs / total_atual) * 100) if total_atual > 0 else 0
+
+    return ComparativoFiscalResponse(
+        lote_id=lote_id,
+        regime_empresa=lote.regime_empresa,
+        uf_origem=lote.uf_origem,
+        uf_destino=lote.uf_destino,
+        cnae_principal=lote.cnae_principal,
+        total_itens=len(itens),
+        total_base_calculo=round(total_base, 2),
+        total_atual_estimado=round(total_atual, 2),
+        total_reforma_estimado=round(total_reforma, 2),
+        diferenca_absoluta=round(diferenca_abs, 2),
+        diferenca_percentual=round(diferenca_pct, 2),
+        faixa_incerteza_min=round(total_min, 2),
+        faixa_incerteza_max=round(total_max, 2),
+    )
 
 
 @router.get("/lotes/{lote_id}/beneficios-fiscais")

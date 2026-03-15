@@ -36,6 +36,10 @@ class Lote(Base):
     arquivo_nome = Column(String(255), nullable=False)
     status = Column(Enum(StatusLote), default=StatusLote.PENDENTE, nullable=False)
     total_itens = Column(Integer, default=0, nullable=False)
+    regime_empresa = Column(String(30), nullable=True)  # SIMPLES, LUCRO_PRESUMIDO, LUCRO_REAL
+    uf_origem = Column(String(2), nullable=True)
+    uf_destino = Column(String(2), nullable=True)
+    cnae_principal = Column(String(10), nullable=True)
     data_upload = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relacionamento 1:N com ItemCadastral
@@ -62,14 +66,18 @@ class ItemCadastral(Base):
     ncm_original = Column(String(20), nullable=False)           # NCM do cadastro (8 dígitos, ex: "18063110")
     cest_original = Column(String(10), nullable=True)           # CEST do cadastro (7 dígitos, ex: "1704600")
     cfop = Column(String(4), nullable=True)                     # CFOP padrão (ex: "5102" = venda interna)
+    cfop_sugerido = Column(String(4), nullable=True)
     
     # ========== BLOCO 3: TRIBUTAÇÃO ==========
     origem_produto = Column(Integer, nullable=True)             # 0=Nacional, 1=Estrangeira importação direta, 2=Estrangeira mercado interno... até 8
     cst_csosn = Column(String(4), nullable=True)                # CST (3 dígitos) ou CSOSN (4 dígitos Simples Nacional)
+    cst_csosn_sugerido = Column(String(4), nullable=True)
     aliquota_icms = Column(Float, nullable=True)                # Alíquota ICMS % (ex: 18.0, 12.0, 7.0)
     aliquota_pis = Column(Float, nullable=True)                 # Alíquota PIS % (ex: 1.65)
     aliquota_cofins = Column(Float, nullable=True)              # Alíquota COFINS % (ex: 7.60)
     possui_st = Column(String(3), nullable=True)                # "SIM" ou "NAO" - Substituição Tributária
+    quantidade = Column(Float, nullable=True)
+    valor_unitario = Column(Float, nullable=True)
     
     # Resultado da IA - NCM
     ncm_sugerido = Column(String(20), nullable=True)
@@ -79,6 +87,7 @@ class ItemCadastral(Base):
         nullable=False
     )
     motivo_divergencia = Column(Text, nullable=True)
+    justificativa_ai = Column(Text, nullable=True)
     confianca_ai = Column(Float, nullable=True)  # 0-100
     
     #REFORMA TRIBUTÁRIA - IBS/CBS
@@ -96,6 +105,17 @@ class ItemCadastral(Base):
     possui_beneficio_fiscal = Column(String, nullable=True)  # "SIM", "NAO", "POSSIVEL"
     tipo_beneficio = Column(String(200), nullable=True)  # "Cesta básica", "Medicamentos", etc
     artigo_legal = Column(String(100), nullable=True)  # "Art. 18, §1º", etc
+
+    # Comparativo fiscal
+    carga_atual_percentual = Column(Float, nullable=True)
+    carga_reforma_percentual = Column(Float, nullable=True)
+    valor_base_calculo = Column(Float, nullable=True)
+    valor_atual_estimado = Column(Float, nullable=True)
+    valor_reforma_estimado = Column(Float, nullable=True)
+    diferenca_absoluta = Column(Float, nullable=True)
+    diferenca_percentual = Column(Float, nullable=True)
+    faixa_incerteza_min = Column(Float, nullable=True)
+    faixa_incerteza_max = Column(Float, nullable=True)
     
     data_processamento = Column(DateTime(timezone=True), nullable=True)
     
