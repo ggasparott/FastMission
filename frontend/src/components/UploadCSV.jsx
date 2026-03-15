@@ -7,6 +7,17 @@ function UploadCSV({ onUploadSuccess }) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState(null)
   const [dragActive, setDragActive] = useState(false)
+  const [empresaContexto, setEmpresaContexto] = useState({
+    regime_empresa: 'SIMPLES',
+    uf_origem: 'SP',
+    uf_destino: 'SP',
+    cnae_principal: '',
+  })
+
+  const handleContextoChange = (e) => {
+    const { name, value } = e.target
+    setEmpresaContexto((prev) => ({ ...prev, [name]: value }))
+  }
 
   const handleDrag = (e) => {
     e.preventDefault()
@@ -46,12 +57,17 @@ function UploadCSV({ onUploadSuccess }) {
       return
     }
 
+    if (!empresaContexto.cnae_principal.trim()) {
+      setError('Informe o CNAE principal da empresa')
+      return
+    }
+
     setUploading(true)
     setError(null)
 
     try {
       console.log('📤 Iniciando upload:', file.name)
-      const response = await uploadCSV(file)
+      const response = await uploadCSV(file, empresaContexto)
       console.log('✅ Upload concluído:', response)
       onUploadSuccess(response.lote_id)
       setFile(null)
@@ -82,6 +98,54 @@ function UploadCSV({ onUploadSuccess }) {
   return (
     <div className="card">
       <h2 className="text-xl font-semibold mb-4">Upload de Cadastro</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Regime</label>
+          <select
+            className="input"
+            name="regime_empresa"
+            value={empresaContexto.regime_empresa}
+            onChange={handleContextoChange}
+          >
+            <option value="SIMPLES">SIMPLES</option>
+            <option value="LUCRO_PRESUMIDO">LUCRO_PRESUMIDO</option>
+            <option value="LUCRO_REAL">LUCRO_REAL</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">UF Origem</label>
+          <input
+            className="input"
+            name="uf_origem"
+            maxLength={2}
+            value={empresaContexto.uf_origem}
+            onChange={handleContextoChange}
+            placeholder="SP"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">UF Destino</label>
+          <input
+            className="input"
+            name="uf_destino"
+            maxLength={2}
+            value={empresaContexto.uf_destino}
+            onChange={handleContextoChange}
+            placeholder="RJ"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">CNAE Principal</label>
+          <input
+            className="input"
+            name="cnae_principal"
+            value={empresaContexto.cnae_principal}
+            onChange={handleContextoChange}
+            placeholder="4711301"
+          />
+        </div>
+      </div>
       
       <div
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
@@ -147,9 +211,9 @@ function UploadCSV({ onUploadSuccess }) {
       <div className="mt-4 text-sm text-gray-600">
         <p className="font-medium mb-2">Formato esperado do CSV:</p>
         <code className="block bg-gray-100 p-2 rounded">
-          descricao,ncm,cest<br />
-          Arroz Integral,1006.30.21,17.069.00<br />
-          Leite UHT,0401.10.10,17.002.00
+          descricao,ncm,cest,quantidade,valor_unitario<br />
+          Arroz Integral,1006.30.21,17.069.00,120,24.90<br />
+          Leite UHT,0401.10.10,17.002.00,80,6.49
         </code>
       </div>
     </div>

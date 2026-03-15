@@ -46,10 +46,14 @@ api.interceptors.response.use(
 );
 
 // === LOTES ===
-export const uploadCSV = async (file) => {
+export const uploadCSV = async (file, contextoEmpresa) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('regime_empresa', contextoEmpresa.regime_empresa);
+    formData.append('uf_origem', contextoEmpresa.uf_origem);
+    formData.append('uf_destino', contextoEmpresa.uf_destino);
+    formData.append('cnae_principal', contextoEmpresa.cnae_principal);
     
     const response = await api.post('/import-csv', formData, {
       headers: {
@@ -80,6 +84,16 @@ export const getLoteItens = async (loteId, params = {}) => {
     return response.data;
   } catch (error) {
     console.error('❌ Erro ao buscar itens do lote:', error);
+    throw error;
+  }
+};
+
+export const getLoteComparativo = async (loteId) => {
+  try {
+    const response = await api.get(`/lotes/${loteId}/comparativo`);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Erro ao buscar comparativo do lote:', error);
     throw error;
   }
 };

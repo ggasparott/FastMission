@@ -20,6 +20,8 @@ const initialForm = {
   aliquota_pis: '',
   aliquota_cofins: '',
   possui_st: '',
+  quantidade: '',
+  valor_unitario: '',
 }
 
 function Itens() {
@@ -61,6 +63,8 @@ function Itens() {
       aliquota_cofins:
         raw.aliquota_cofins === '' ? undefined : Number(raw.aliquota_cofins),
       possui_st: raw.possui_st?.trim() || undefined,
+      quantidade: raw.quantidade === '' ? undefined : Number(raw.quantidade),
+      valor_unitario: raw.valor_unitario === '' ? undefined : Number(raw.valor_unitario),
     }
 
     if (!payload.descricao || !payload.ncm) {
@@ -186,6 +190,14 @@ function Itens() {
           ? ''
           : String(item.aliquota_cofins),
       possui_st: item.possui_st || '',
+      quantidade:
+        item.quantidade === null || item.quantidade === undefined
+          ? ''
+          : String(item.quantidade),
+      valor_unitario:
+        item.valor_unitario === null || item.valor_unitario === undefined
+          ? ''
+          : String(item.valor_unitario),
     })
   }
 
@@ -433,6 +445,32 @@ function Itens() {
               <option value="SIM">SIM</option>
               <option value="NAO">NAO</option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-700 mb-1">Quantidade</label>
+            <input
+              className="input"
+              name="quantidade"
+              type="number"
+              step="0.01"
+              value={form.quantidade}
+              onChange={handleFormChange}
+              placeholder="10"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-700 mb-1">Valor Unitário</label>
+            <input
+              className="input"
+              name="valor_unitario"
+              type="number"
+              step="0.01"
+              value={form.valor_unitario}
+              onChange={handleFormChange}
+              placeholder="12.50"
+            />
           </div>
 
           <div className="md:col-span-4 flex justify-end">

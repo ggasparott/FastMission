@@ -4,6 +4,7 @@ import Header from './components/Header'
 import Dashboard from './pages/Dashboard'
 import LoteDetalhes from './components/LoteDetalhes'
 import Itens from './pages/Itens'
+import Lotes from './pages/Lotes'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,8 +24,9 @@ function App() {
           <main className="container mx-auto px-4 py-8">
             <Routes>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/itens" element={<Itens />} />
+              <Route path="/lotes" element={<Lotes />} />
               <Route path="/lotes/:loteId" element={<LoteDetalhes />} />
+              <Route path="/itens" element={<Itens />} />
             </Routes>
           </main>
         </div>

@@ -22,6 +22,12 @@ function Header() {
               Dashboard
             </Link>
             <Link
+              to="/lotes"
+              className="text-gray-700 hover:text-primary-500 transition-colors"
+            >
+              Lotes
+            </Link>
+            <Link
               to="/itens"
               className="text-gray-700 hover:text-primary-500 transition-colors"
             >

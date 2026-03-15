@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react'
-import { getLoteStatus, getLoteItens } from '../services/api'
+import { getLoteStatus, getLoteItens, getLoteComparativo } from '../services/api'
 
 function LoteDetalhes() {
   const { loteId } = useParams()
@@ -22,6 +22,12 @@ function LoteDetalhes() {
   const { data: itens, isLoading: loadingItens } = useQuery({
     queryKey: ['itens', loteId],
     queryFn: () => getLoteItens(loteId),
+    enabled: isFinished,
+  })
+
+  const { data: comparativo } = useQuery({
+    queryKey: ['comparativo', loteId],
+    queryFn: () => getLoteComparativo(loteId),
     enabled: isFinished,
   })
 
@@ -118,6 +124,55 @@ function LoteDetalhes() {
         )}
       </div>
 
+      {comparativo && (
+        <div className="card mb-6">
+          <h3 className="text-xl font-semibold mb-4">Comparativo Fiscal (Atual x Reforma)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div>
+              <p className="text-sm text-gray-600">Regime</p>
+              <p className="text-base font-semibold">{comparativo.regime_empresa || '-'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Rota Fiscal</p>
+              <p className="text-base font-semibold">
+                {(comparativo.uf_origem || '-')} → {(comparativo.uf_destino || '-')}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">CNAE Principal</p>
+              <p className="text-base font-semibold">{comparativo.cnae_principal || '-'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Base cálculo total</p>
+              <p className="text-base font-semibold">R$ {comparativo.total_base_calculo?.toFixed(2)}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="rounded-lg bg-gray-50 p-4">
+              <p className="text-sm text-gray-600">Carga atual estimada</p>
+              <p className="text-xl font-bold text-gray-900">R$ {comparativo.total_atual_estimado?.toFixed(2)}</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-4">
+              <p className="text-sm text-gray-600">Carga reforma estimada</p>
+              <p className="text-xl font-bold text-gray-900">R$ {comparativo.total_reforma_estimado?.toFixed(2)}</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-4">
+              <p className="text-sm text-gray-600">Diferença absoluta</p>
+              <p className="text-xl font-bold text-gray-900">R$ {comparativo.diferenca_absoluta?.toFixed(2)}</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-4">
+              <p className="text-sm text-gray-600">Diferença %</p>
+              <p className="text-xl font-bold text-gray-900">{comparativo.diferenca_percentual?.toFixed(2)}%</p>
+            </div>
+          </div>
+
+          <p className="text-sm text-gray-600 mt-3">
+            Faixa de incerteza reforma: R$ {comparativo.faixa_incerteza_min?.toFixed(2)} a R$ {comparativo.faixa_incerteza_max?.toFixed(2)}
+          </p>
+        </div>
+      )}
+
       {isFinished && itens && itens.length > 0 && (
         <div className="card">
           <h3 className="text-xl font-semibold mb-4">Resultados da Análise</h3>
@@ -130,6 +185,9 @@ function LoteDetalhes() {
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">NCM</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">CEST</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Regime</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Carga Atual</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Carga Reforma</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Δ R$</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">IBS</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">CBS</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Benefícios</th>
@@ -139,8 +197,8 @@ function LoteDetalhes() {
                 {itens.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm">{item.descricao}</td>
-                    <td className="px-4 py-3 text-sm font-mono">{item.ncm}</td>
-                    <td className="px-4 py-3 text-sm font-mono">{item.cest || '-'}</td>
+                    <td className="px-4 py-3 text-sm font-mono">{item.ncm_original}</td>
+                    <td className="px-4 py-3 text-sm font-mono">{item.cest_original || '-'}</td>
                     <td className="px-4 py-3 text-sm">
                       <span className={`px-2 py-1 rounded text-xs ${
                         item.regime_tributario === 'NORMAL' ? 'bg-gray-100' :
@@ -151,6 +209,9 @@ function LoteDetalhes() {
                         {item.regime_tributario || 'N/A'}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-sm">{item.carga_atual_percentual ?? '-'}%</td>
+                    <td className="px-4 py-3 text-sm">{item.carga_reforma_percentual ?? '-'}%</td>
+                    <td className="px-4 py-3 text-sm">R$ {item.diferenca_absoluta?.toFixed?.(2) ?? '-'}</td>
                     <td className="px-4 py-3 text-sm">{item.aliquota_ibs}%</td>
                     <td className="px-4 py-3 text-sm">{item.aliquota_cbs}%</td>
                     <td className="px-4 py-3 text-sm">
