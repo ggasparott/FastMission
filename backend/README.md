@@ -76,6 +76,32 @@ backend/
 - `GET /api/lotes/{id}/itens` - Listar itens processados
 - `GET /api/lotes` - Listar todos os lotes
 
+## Pipeline RAG (PDF -> Pinecone, fluxo manual)
+
+Fluxo recomendado para base contábil e Reforma Tributária:
+
+1. Baixe o PDF e coloque em uma pasta local do projeto.
+2. Rode a pipeline Python para extrair texto, quebrar em chunks e enviar para o Pinecone.
+
+Exemplo:
+
+```bash
+python backend/IA_TAX/RAG/pdf_pipeline.py \
+  "backend/IA_TAX/RAG/docs/reforma_tributaria.pdf" \
+  "SIMPLES,LUCRO_PRESUMIDO" \
+  "47,4711" \
+  "SP" \
+  "MG"
+```
+
+Ordem dos parâmetros:
+
+- caminho_pdf (obrigatório)
+- regimes (opcional, separados por vírgula)
+- cnaes (opcional, separados por vírgula)
+- uf_origem (opcional)
+- uf_destino (opcional)
+
 ## Desenvolvimento
 
 ### Criar nova migration
