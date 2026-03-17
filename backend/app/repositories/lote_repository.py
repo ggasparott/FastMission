@@ -1,7 +1,7 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session, joinedload
-from app.repositories.base import BaseRepository
-from app.models import Lote
+from .base import BaseRepository
+from ..models import Lote
 
 
 class LoteRepository(BaseRepository[Lote]):

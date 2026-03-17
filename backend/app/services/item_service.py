@@ -13,9 +13,9 @@ from uuid import UUID
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from app.models import ItemCadastral, StatusValidacao
-from app.repositories.item_repository import ItemRepository
-from app.repositories.lote_repository import LoteRepository
+from ..models import ItemCadastral, StatusValidacao
+from ..repositories.item_repository import ItemRepository
+from ..repositories.lote_repository import LoteRepository
 
 
 class ItemNotFoundException(Exception):

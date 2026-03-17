@@ -12,8 +12,8 @@ Responsabilidades:
 from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session
 
-from app.models import NCMOficial
-from app.repositories.ncm_repository import NCMRepository
+from ..models import NCMOficial
+from ..repositories.ncm_repository import NCMRepository
 
 
 class NCMNotFoundException(Exception):

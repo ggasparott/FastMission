@@ -1,7 +1,7 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from app.repositories.base import BaseRepository
-from app.models import NCMOficial
+from .base import BaseRepository
+from ..models import NCMOficial
 
 class NCMRepository(BaseRepository[NCMOficial]):
     """

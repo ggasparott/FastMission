@@ -7,8 +7,8 @@ incluindo validação, contagem e atualização de resultados.
 
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from app.repositories.base import BaseRepository
-from app.models import ItemCadastral
+from .base import BaseRepository
+from ..models import ItemCadastral
 
 
 class ItemRepository(BaseRepository[ItemCadastral]):

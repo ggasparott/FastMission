@@ -11,8 +11,8 @@ import sys
 # Adicionar o diretório pai ao path para importar app
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from app.database import Base
-from app.models import Lote, ItemCadastral  # Importar todos os modelos
+from ..app.database import Base
+from ..app.models import Lote, ItemCadastral  # Importar todos os modelos
 from dotenv import load_dotenv
 
 load_dotenv()
