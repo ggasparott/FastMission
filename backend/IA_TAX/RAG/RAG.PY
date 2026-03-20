@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 from dotenv import load_dotenv
 from pinecone import Pinecone
-
+from openai import OpenAI
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, "..", ".env"))
@@ -17,13 +17,13 @@ VECTOR_SIZE = int(os.getenv("RAG_VECTOR_SIZE", "512"))
 TOP_K = int(os.getenv("RAG_TOP_K", "5"))
 
 
-def build_query_vector(text: str, size: int = VECTOR_SIZE) -> List[float]:
-	"""
-	Gera vetor determinístico sem dependência externa de embedding.
-	Útil para cenário MVP com retrieval majoritariamente filtrado por metadata.
-	"""
-	seed = hashlib.sha256((text or "").encode("utf-8")).digest()
-	return [((seed[i % len(seed)] / 255.0) * 2.0 - 1.0) for i in range(size)]
+def build_query_vector(text: str, size: int = VECTOR_SIZE) -> List:
+	openai = OpenAI()
+	response = openai.embeddings.create(
+		input=text,
+		model="text-embedding-ada-002"
+	)
+	return response.data[0].embedding[:size]  # Garantir que o vetor tenha o tamanho esperado
 
 
 def get_pinecone_index():
@@ -67,17 +67,23 @@ def retrieve_fiscal_context(
 	uf_destino: str,
 	top_k: int = TOP_K,
 ) -> List[Dict[str, Any]]:
+	print("[DEBUG retrieve_fiscal_context] Params:")
+	print("descricao:", descricao)
+	print("ncm:", ncm)
+	print("regime_empresa:", regime_empresa)
+	print("cnae_principal:", cnae_principal)
+	print("uf_origem:", uf_origem)
+	print("uf_destino:", uf_destino)
+	print("top_k:", top_k)
 	now_iso = datetime.now(timezone.utc).isoformat()
 	# Query vector compatível com dimensão do índice (RAG_VECTOR_SIZE)
 	query_text = " ".join(filter(None, [descricao, f"NCM {ncm}" if ncm else "", regime_empresa, uf_origem, uf_destino]))
 	query_vector = build_query_vector(query_text) if query_text.strip() else [0.0] * VECTOR_SIZE
 
-	base_filter = {"ativo": {"$eq": True}}
 	response = index.query(
 		vector=query_vector,
 		top_k=top_k,
 		include_metadata=True,
-		filter=base_filter,
 	)
 
 	matches = response.get("matches", []) if isinstance(response, dict) else getattr(response, "matches", [])
@@ -114,7 +120,7 @@ def retrieve_fiscal_context(
 				"payload": payload,
 			}
 		)
-
+	print("DEBUG retrieve_fiscal_context params:", descricao, ncm, regime_empresa, cnae_principal, uf_origem, uf_destino, top_k)
 	return results
 
 

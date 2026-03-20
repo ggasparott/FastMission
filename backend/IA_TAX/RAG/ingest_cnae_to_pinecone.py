@@ -23,6 +23,8 @@ def processar_e_inserir_cnae():
         descricao = str(row.get('descricao', '')).strip()
         atividades = str(row.get('atividades', '')).strip()
         texto = f"CNAE: {cnae_id} | {descricao} | Atividades: {atividades}"
+        # Limitar o texto para não estourar o limite do modelo de embedding
+        texto = texto[:4000]
         metadados = {
             "cnae": cnae_id,
             "descricao": descricao,
