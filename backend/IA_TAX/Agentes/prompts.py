@@ -1,3 +1,36 @@
+def montar_prompt_beneficios_fiscais(contexto_rag, descricao_produto=None, ncm=None, regime_empresa=None, uf_origem=None, uf_destino=None):
+    """
+    Monta um prompt para a IA consultar o RAG e cruzar benefícios fiscais aplicáveis ao produto/empresa.
+    """
+    prompt = f"""
+    Você é um consultor tributário especialista em benefícios fiscais brasileiros.
+    Utilize o contexto legal extraído do RAG abaixo para identificar e cruzar todos os benefícios fiscais, incentivos, isenções, reduções de base de cálculo ou créditos presumidos que possam ser aplicados ao produto e cenário informados.
+
+    Contexto legal extraído do RAG:
+    {contexto_rag}
+
+    Dados do produto/empresa:
+    """
+    if descricao_produto:
+        prompt += f"- Descrição do produto: {descricao_produto}\n"
+    if ncm:
+        prompt += f"- NCM: {ncm}\n"
+    if regime_empresa:
+        prompt += f"- Regime tributário da empresa: {regime_empresa}\n"
+    if uf_origem:
+        prompt += f"- UF de origem: {uf_origem}\n"
+    if uf_destino:
+        prompt += f"- UF de destino: {uf_destino}\n"
+    prompt += """
+
+    Instruções:
+    - Liste todos os benefícios fiscais encontrados no contexto que possam ser aplicados ao cenário acima.
+    - Para cada benefício, explique a fundamentação legal (cite a fonte, lei ou artigo) e as condições para aplicação.
+    - Se houver dúvidas ou múltiplas possibilidades, explique as alternativas e oriente o usuário sobre como confirmar a aplicabilidade.
+    - Responda de forma objetiva, técnica e cite sempre as fontes legais encontradas.
+    - Se não houver benefício aplicável, explique o motivo.
+    """
+    return prompt
 
 def montar_prompt_llm(contexto_rag, csv_usuario):
     """

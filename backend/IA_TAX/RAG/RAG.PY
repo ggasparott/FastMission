@@ -67,29 +67,33 @@ def retrieve_fiscal_context(
 	uf_destino: str,
 	top_k: int = TOP_K,
 ) -> List[Dict[str, Any]]:
-	print("[DEBUG retrieve_fiscal_context] Params:")
-	print("descricao:", descricao)
-	print("ncm:", ncm)
-	print("regime_empresa:", regime_empresa)
-	print("cnae_principal:", cnae_principal)
-	print("uf_origem:", uf_origem)
-	print("uf_destino:", uf_destino)
-	print("top_k:", top_k)
 	now_iso = datetime.now(timezone.utc).isoformat()
 	# Query vector compatível com dimensão do índice (RAG_VECTOR_SIZE)
 	query_text = " ".join(filter(None, [descricao, f"NCM {ncm}" if ncm else "", regime_empresa, uf_origem, uf_destino]))
 	query_vector = build_query_vector(query_text) if query_text.strip() else [0.0] * VECTOR_SIZE
 
+	metadata_filter = {}
+	if ncm:
+		metadata_filter["ncm"] = ncm
+	if regime_empresa:
+		metadata_filter["regime_empresa_aplicavel"] = regime_empresa
+	if cnae_principal:
+		metadata_filter["cnae_prefixos"] = cnae_prefixes(cnae_principal)
+	if uf_origem:
+		metadata_filter["uf_origem"] = uf_origem
+	if uf_destino:
+		metadata_filter["uf_destino"] = uf_destino
+
 	response = index.query(
 		vector=query_vector,
 		top_k=top_k,
 		include_metadata=True,
+		filter=metadata_filter if metadata_filter else None
 	)
 
 	matches = response.get("matches", []) if isinstance(response, dict) else getattr(response, "matches", [])
 	cnaes = cnae_prefixes(cnae_principal)
 	results: List[Dict[str, Any]] = []
-
 	for match in matches:
 		metadata = match.get("metadata", {}) if isinstance(match, dict) else getattr(match, "metadata", {})
 		payload = metadata or {}
