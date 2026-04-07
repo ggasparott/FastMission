@@ -326,3 +326,129 @@ class ComparativoFiscalResponse(BaseModel):
     diferenca_percentual: float
     faixa_incerteza_min: float
     faixa_incerteza_max: float
+
+
+class AnaliseItemResponse(BaseModel):
+    """
+    Response model para análise AI de um item da Reforma Tributária.
+
+    Retornado por:
+    - GET /api/itens/{item_id}/analise
+    - POST /api/agent/query
+    """
+
+    # --- Status e Confiança ---
+    status: str = Field(..., examples=["VALIDO", "DIVERGENTE"])
+    confianca: int = Field(default=75, ge=0, le=100, examples=[95])
+    motivo_divergencia: Optional[str] = Field(
+        None,
+        examples=["NCM reclassificado de 61045090 para 62034300"]
+    )
+
+    # --- Classificação Fiscal Sugerida ---
+    ncm_sugerido: Optional[str] = Field(None, pattern="^\\d{8}$", examples=["18063110"])
+    cest_sugerido: Optional[str] = Field(None, pattern="^\\d{6}$", examples=["1704600"])
+    cfop_sugerido: Optional[str] = Field(None, pattern="^\\d{4}$", examples=["5102"])
+    cst_csosn_sugerido: Optional[str] = Field(None, examples=["060"])
+
+    # --- Tributação Sugerida ---
+    regime_tributario: Optional[str] = Field(None, examples=["Simples Nacional"])
+    aliquota_ibs: Optional[float] = Field(None, ge=0, le=100, examples=[12.5])
+    aliquota_cbs: Optional[float] = Field(None, ge=0, le=100, examples=[7.65])
+
+    # --- Benefícios Fiscais ---
+    tipo_beneficio: Optional[str] = Field(
+        None,
+        examples=["Isencao", "Reducao de Base de Calculo"]
+    )
+    possui_beneficio_fiscal: bool = Field(default=False, examples=[True])
+
+    # --- Justificativa ---
+    artigo_legal: Optional[str] = Field(
+        None,
+        examples=["Lei Complementar 87/1996"]
+    )
+    justificativa: Optional[str] = Field(
+        None,
+        max_length=300,
+        examples=["O produto é um chocolate ao leite, enquadrado no NCM 18063110."]
+    )
+
+    class Config:
+        from_attributes = True
+
+    @field_validator("confianca")
+    @classmethod
+    def validar_confianca(cls, v):
+        if v < 0 or v > 100:
+            raise ValueError("Confiança deve estar entre 0 e 100")
+        return v
+
+    @field_validator("aliquota_ibs", "aliquota_cbs", mode="before")
+    @classmethod
+    def validar_aliquotas(cls, v):
+        if v is None:
+            return None
+        if not isinstance(v, (int, float)):
+            raise ValueError("Alíquota deve ser um número")
+        if v < 0 or v > 100:
+            raise ValueError("Alíquota deve estar entre 0 e 100")
+        return v
+
+
+class AgentQueryRequest(BaseModel):
+    """
+    Request model para consulta direta do agente.
+
+    POST /api/agent/query com este schema
+    """
+
+    # Dados obrigatórios do produto
+    descricao: str = Field(
+        ...,
+        min_length=3,
+        max_length=500,
+        examples=["Camiseta 100% Algodão"]
+    )
+    ncm: str = Field(
+        ...,
+        pattern="^\\d{8}$",
+        examples=["61045090"],
+        description="NCM com 8 dígitos"
+    )
+
+    # Contexto da empresa
+    regime_empresa: str = Field(
+        ...,
+        pattern="^(SIMPLES|LUCRO_PRESUMIDO|LUCRO_REAL)$",
+        examples=["SIMPLES"],
+        description="Regime tributário da empresa"
+    )
+
+    # Contexto da operação
+    uf_origem: str = Field(
+        ...,
+        pattern="^[A-Z]{2}$",
+        examples=["SP"],
+        description="Código UF de origem (2 letras)"
+    )
+    uf_destino: str = Field(
+        ...,
+        pattern="^[A-Z]{2}$",
+        examples=["RJ"],
+        description="Código UF de destino (2 letras)"
+    )
+
+    # Dados opcionais
+    cnae: Optional[str] = Field(
+        None,
+        pattern="^\\d{7}$",
+        examples=["1413800"],
+        description="CNAE principal com 7 dígitos"
+    )
+    cest: Optional[str] = Field(
+        None,
+        pattern="^\\d{6}$",
+        examples=["123456"],
+        description="CEST com 6 dígitos"
+    )

@@ -6,14 +6,19 @@ from sqlalchemy.orm import Session
 from typing import List
 import csv
 import io
+import json
+import subprocess
+import os
 from uuid import UUID
 
 from .database import get_db
 from .models import Lote, ItemCadastral, StatusLote, StatusValidacao
 from .schemas import (
-    UploadResponse, 
-    LoteResponse, 
-    LoteStatusResponse, 
+    AnaliseItemResponse,
+    AgentQueryRequest,
+    UploadResponse,
+    LoteResponse,
+    LoteStatusResponse,
     ItemCadastralResponse,
     ItemCreateSchema,
     ItemUpdateSchema,
@@ -303,7 +308,7 @@ async def listar_beneficios_fiscais(lote_id: UUID, db: Session = Depends(get_db)
     economia_total = 0.0
     for item in itens:
         if item.aliquota_ibs is not None:
-            economia_total += (26.5 - item.aliquota_ibs)  # 26.5% = alíquota padrão
+            economia_total += (0.1 - item.aliquota_ibs)  # 26.5% = alíquota padrão
     
     return {
         "total_itens": len(itens),
@@ -550,3 +555,160 @@ async def deletar_item(item_id: UUID, db: Session = Depends(get_db)):
         return None
     except ItemNotFoundException as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+# =============================================================================
+# ENDPOINTS DE ANÁLISE IA - Reforma Tributária
+# =============================================================================
+
+@router.get("/itens/{item_id}/analise", response_model=AnaliseItemResponse)
+async def get_analise_item(item_id: UUID, db: Session = Depends(get_db)):
+    """
+    Retorna análise AI completa de um item específico.
+
+    A análise vem do processamento realizado por validate_reforma.py
+    quando o lote foi submetido.
+
+    Retorna 14 campos:
+    - Status (VALIDO | DIVERGENTE)
+    - NCM, CEST, CFOP, CST/CSOSN sugeridos
+    - Regime tributário, alíquotas IBS/CBS
+    - Benefício fiscal, artigo legal, justificativa
+    - Score de confiança (0-100)
+    """
+    try:
+        # PASSO 1: Buscar item no banco
+        item = db.query(ItemCadastral).filter(ItemCadastral.id == item_id).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Item não encontrado")
+
+        # PASSO 2: Montar resposta com todos os 14 campos
+        analise = AnaliseItemResponse(
+            status=item.status_validacao if item.status_validacao else "VALIDO",
+            ncm_sugerido=item.ncm_sugerido,
+            cest_sugerido=item.cest_sugerido,
+            cfop_sugerido=item.cfop_sugerido,
+            cst_csosn_sugerido=item.cst_csosn_sugerido,
+            regime_tributario=item.regime_tributario,
+            aliquota_ibs=item.aliquota_ibs,
+            aliquota_cbs=item.aliquota_cbs,
+            tipo_beneficio=item.tipo_beneficio,
+            possui_beneficio_fiscal=item.possui_beneficio_fiscal if item.possui_beneficio_fiscal else False,
+            artigo_legal=item.artigo_legal,
+            justificativa=item.justificativa_ai,
+            confianca=item.confianca_ai if item.confianca_ai else 75,
+            motivo_divergencia=item.motivo_divergencia,
+        )
+
+        # PASSO 3: Retornar (FastAPI serializa automaticamente)
+        return analise
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao buscar análise do item: {str(e)}"
+        )
+
+
+@router.post("/agent/query", response_model=AnaliseItemResponse)
+async def query_agent_direto(
+    request: AgentQueryRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Consulta o agente FastTax em tempo real (sem salvar no banco).
+
+    Útil para validação unitária de um produto antes de fazer upload.
+
+    Request esperado:
+    {
+        "descricao": "Camiseta 100% Algodão",
+        "ncm": "61045090",
+        "regime_empresa": "SIMPLES",
+        "uf_origem": "SP",
+        "uf_destino": "RJ",
+        "cnae": "1413800",
+        "cest": "123456"
+    }
+
+    Response: AnaliseItemResponse com 14 campos
+    """
+    try:
+        # PASSO 1: Validar regime_empresa (Pydantic já valida, mas podemos ser explícitos)
+        regimes_validos = {"SIMPLES", "LUCRO_PRESUMIDO", "LUCRO_REAL"}
+        if request.regime_empresa not in regimes_validos:
+            raise ValueError(f"Regime inválido. Deve ser um de: {', '.join(regimes_validos)}")
+
+        # PASSO 2: Montar JSON de entrada para validate_reforma.py
+        entrada_agente = {
+            "descricao": request.descricao,
+            "ncm": request.ncm,
+            "regime_empresa": request.regime_empresa,
+            "uf_origem": request.uf_origem,
+            "uf_destino": request.uf_destino,
+            "cnae_principal": request.cnae,
+            "cest": request.cest,
+        }
+
+        # PASSO 3: Chamar validate_reforma.py via subprocess
+        script_path = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "skills",
+            "validate_reforma.py"
+        )
+
+        # Converter entrada para JSON string
+        entrada_json = json.dumps(entrada_agente, ensure_ascii=False)
+
+        # Executar subprocess
+        try:
+            processo = subprocess.Popen(
+                ["python", script_path],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=os.path.dirname(os.path.dirname(__file__))  # Trabalhar da pasta do app
+            )
+            stdout, stderr = processo.communicate(input=entrada_json, timeout=30)
+
+            if processo.returncode != 0:
+                raise ValueError(f"Erro no agente: {stderr}")
+
+            # Parse resposta JSON
+            resultado = json.loads(stdout)
+
+        except subprocess.TimeoutExpired:
+            raise ValueError("Agente demorou demais (timeout > 30s)")
+        except json.JSONDecodeError:
+            raise ValueError(f"Resposta do agente não é JSON válido: {stdout[:200]}")
+
+        # PASSO 4: Converter resultado para AnaliseItemResponse
+        analise = AnaliseItemResponse(
+            status=resultado.get("status", "VALIDO"),
+            ncm_sugerido=resultado.get("ncm_sugerido"),
+            cest_sugerido=resultado.get("cest_sugerido"),
+            cfop_sugerido=resultado.get("cfop_sugerido"),
+            cst_csosn_sugerido=resultado.get("cst_csosn_sugerido"),
+            regime_tributario=resultado.get("regime_tributario"),
+            aliquota_ibs=resultado.get("aliquota_ibs"),
+            aliquota_cbs=resultado.get("aliquota_cbs"),
+            tipo_beneficio=resultado.get("tipo_beneficio"),
+            possui_beneficio_fiscal=resultado.get("possui_beneficio_fiscal", False),
+            artigo_legal=resultado.get("artigo_legal"),
+            justificativa=resultado.get("justificativa"),
+            confianca=resultado.get("confianca", 75),
+            motivo_divergencia=resultado.get("motivo_divergencia"),
+        )
+
+        return analise
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao chamar agente: {str(e)}"
+        )
