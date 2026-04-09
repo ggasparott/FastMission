@@ -102,10 +102,14 @@ def retrieve_fiscal_context(
 			continue
 		if cnaes and not _contains_any(payload.get("cnae_prefixos"), cnaes):
 			continue
-		if uf_origem and payload.get("uf_origem") and str(payload.get("uf_origem")).upper() != uf_origem.upper():
-			continue
-		if uf_destino and payload.get("uf_destino") and str(payload.get("uf_destino")).upper() != uf_destino.upper():
-			continue
+		# Filtro uf_origem: se documento tem uf_origem, deve bater
+		if uf_origem and payload.get("uf_origem"):
+			if str(payload.get("uf_origem")).upper() != uf_origem.upper():
+				continue
+		# Filtro uf_destino: se documento tem uf_destino, deve bater. Se não tem, é válido para qualquer destino
+		if uf_destino and payload.get("uf_destino"):
+			if str(payload.get("uf_destino")).upper() != uf_destino.upper():
+				continue
 
 		vig_inicio = payload.get("vigencia_inicio")
 		vig_fim = payload.get("vigencia_fim")
@@ -124,7 +128,6 @@ def retrieve_fiscal_context(
 				"payload": payload,
 			}
 		)
-	print("DEBUG retrieve_fiscal_context params:", descricao, ncm, regime_empresa, cnae_principal, uf_origem, uf_destino, top_k)
 	return results
 
 

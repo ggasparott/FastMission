@@ -380,7 +380,17 @@ async def get_stats(db: Session = Depends(get_db)):
             ).scalar() or 0
         except Exception:
             total_beneficios = 0
-        
+
+        # Calcular economia: soma das diferenças absolutas (negativas = economia)
+        try:
+            economia_total = db.query(func.sum(ItemCadastral.diferenca_absoluta)).filter(
+                ItemCadastral.status_validacao == StatusValidacao.VALIDO,
+                ItemCadastral.diferenca_absoluta < 0
+            ).scalar() or 0
+            economia_total = abs(float(economia_total))  # Tornar positivo para display
+        except Exception:
+            economia_total = 0
+
         return {
             "totalLotes": total_lotes,
             "totalItens": int(total_itens),
@@ -388,7 +398,7 @@ async def get_stats(db: Session = Depends(get_db)):
             "lotesConcluidos": lotes_concluidos,
             "divergencias": total_divergencias,
             "beneficios": total_beneficios,
-            "economia": 0  # TODO: calcular economia real
+            "economia": round(economia_total, 2)
         }
     except Exception as e:
         print(f"Erro em /stats: {e}")
@@ -592,7 +602,7 @@ async def get_analise_item(item_id: UUID, db: Session = Depends(get_db)):
             aliquota_ibs=item.aliquota_ibs,
             aliquota_cbs=item.aliquota_cbs,
             tipo_beneficio=item.tipo_beneficio,
-            possui_beneficio_fiscal=item.possui_beneficio_fiscal if item.possui_beneficio_fiscal else False,
+            possui_beneficio_fiscal=bool(item.possui_beneficio_fiscal) if item.possui_beneficio_fiscal is not None else False,
             artigo_legal=item.artigo_legal,
             justificativa=item.justificativa_ai,
             confianca=item.confianca_ai if item.confianca_ai else 75,
@@ -680,8 +690,9 @@ async def query_agent_direto(
             # Parse resposta JSON
             resultado = json.loads(stdout)
 
-        except subprocess.TimeoutExpired:
-            raise ValueError("Agente demorou demais (timeout > 30s)")
+        except subprocess.TimeoutExpired as e:
+            stderr_info = (e.stderr[-500:] if e.stderr else "sem stderr") if e.stderr else "sem stderr"
+            raise ValueError(f"Agente demorou demais (timeout > 30s). Último erro: {stderr_info}")
         except json.JSONDecodeError:
             raise ValueError(f"Resposta do agente não é JSON válido: {stdout[:200]}")
 

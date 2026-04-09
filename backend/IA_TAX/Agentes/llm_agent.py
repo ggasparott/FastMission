@@ -164,7 +164,7 @@ Contexto legal extraído do RAG:
 """
     if fontes_str:
         prompt += f"\nFontes legais: {fontes_str}\n"
-    prompt += f"\nPergunta do usuário:\n{{descricao}}\n\nInstruções:\n- Responda de forma objetiva e cite as fontes legais sempre que possível.\n- Se não houver base legal clara, explique o motivo.\n- Use markdown para formatar a resposta.\n"
+    prompt += f"\nPergunta do usuário:\n{descricao}\n\nInstruções:\n- Responda de forma objetiva e cite as fontes legais sempre que possível.\n- Se não houver base legal clara, explique o motivo.\n- Use markdown para formatar a resposta.\n"
     if csv_usuario:
         if usar_exemplos:
             exemplos = exemplos_few_shot()
@@ -210,7 +210,6 @@ FastTax = Agent(
     model=model,
     tools=[
         buscar_ncm_sugerido,
-        prompts,
         ],
     knowledge=knowledge_base,
     add_knowledge_to_context=True,  # injeta contexto automaticamente

@@ -123,7 +123,8 @@ def calcular_comparativo_fiscal(item: ItemCadastral, resultado: dict, regime_emp
     valor_unitario = item.valor_unitario if item.valor_unitario is not None else 0
     valor_base_calculo = quantidade * valor_unitario
     if valor_base_calculo <= 0:
-        valor_base_calculo = 100.0
+        print(f"[WARNING] Item {item.id}: zero base calc (qty={quantidade}, unit={valor_unitario})")
+        valor_base_calculo = 100.0  # Default para demo - valores faltam no CSV
 
     valor_atual_estimado = valor_base_calculo * (carga_atual_percentual / 100)
     valor_reforma_estimado = valor_base_calculo * (carga_reforma_percentual / 100)
@@ -153,11 +154,12 @@ def processar_lote_task(self, lote_id: str):
     """
     Task Celery para processar um lote completo.
     Roda em background no worker.
-    
+
     ⚠️ CRÍTICO: Try/except para não crashar o worker!
     """
     db = SessionLocal()
-    
+    lote = None  # Initialize to avoid NameError in exception handler
+
     try:
         # Buscar lote
         lote = db.query(Lote).filter(Lote.id == UUID(lote_id)).first()
@@ -195,6 +197,7 @@ def processar_lote_task(self, lote_id: str):
                 item.ncm_sugerido = resultado.get('ncm_sugerido')
                 status_raw = (resultado.get('status') or 'DIVERGENTE').upper()
                 if status_raw not in StatusValidacao.__members__:
+                    print(f"[WARNING] Item {item.id}: Invalid status '{status_raw}' from agent, defaulting to DIVERGENTE")
                     status_raw = 'DIVERGENTE'
                 item.status_validacao = StatusValidacao[status_raw]
                 item.motivo_divergencia = resultado.get('explicacao')

@@ -65,6 +65,11 @@ def processar_csv_estado(index, caminho: str, uf: str) -> tuple[int, int]:
     total = 0
     ignorados = 0
 
+    # Verifica se tem coluna uf_origem; se não, pula o arquivo
+    if "uf_origem" not in df.columns:
+        print(f"\n⚠️  Estado: {uf} | Arquivo: {os.path.basename(caminho)} | ❌ Sem coluna 'uf_origem' — IGNORADO")
+        return 0, len(df)
+
     print(f"\n🗺️  Estado: {uf} | Arquivo: {os.path.basename(caminho)} | Linhas: {len(df)}")
 
     for _, row in df.iterrows():
@@ -113,11 +118,12 @@ def processar_csv_estado(index, caminho: str, uf: str) -> tuple[int, int]:
             continue
 
         doc_id = f"cbenef_{uf_origem}_{codigo}"
-        index.upsert([{
+        # Pinecone v5: usar format correto
+        index.upsert(vectors=[{
             "id": doc_id,
             "values": vetor,
             "metadata": metadados,
-        }])
+        }], namespace="")
 
         total += 1
         if total % 10 == 0:

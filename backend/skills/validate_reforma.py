@@ -177,17 +177,22 @@ def parsear_resposta_agente(resposta_texto, ncm_original=None, cest_original=Non
 
         # ===== EXTRAÇÃO 1: CAMPOS NUMÉRICOS SIMPLES =====
 
-        # NCM (8 dígitos)
-        ncm_match = re.search(r"NCM\s+(?:sugerido)?\s*[:=]?\s*(\d{8})", resposta_limpa, re.IGNORECASE)
+        # NCM (8 dígitos) - mais robusto para variações de espaçamento
+        ncm_match = re.search(r"NCM\s*:?=?\s*(?:sugerido)?\s*:?=?\s*(\d{8})", resposta_limpa, re.IGNORECASE)
+        if not ncm_match:
+            ncm_match = re.search(r"(\d{8})\s+(?:é|ser)\s+(?:o\s+)?NCM", resposta_limpa, re.IGNORECASE)
         ncm_sugerido = ncm_match.group(1) if ncm_match else None
 
-        # CEST (6 dígitos)
-        # Procura "CEST:" ou "CEST sugerido:" ou "CEST ="
-        cest_match = re.search(r"CEST\s*(?:sugerido)?\s*[:=]?\s*(\d{6})", resposta_limpa, re.IGNORECASE)
+        # CEST (6 dígitos) - mais robusto
+        cest_match = re.search(r"CEST\s*:?=?\s*(?:sugerido)?\s*:?=?\s*(\d{6})", resposta_limpa, re.IGNORECASE)
+        if not cest_match:
+            cest_match = re.search(r"(\d{6})\s+(?:é|ser)\s+(?:o\s+)?CEST", resposta_limpa, re.IGNORECASE)
         cest_sugerido = cest_match.group(1) if cest_match else None
 
-        # CFOP (4 dígitos)
-        cfop_match = re.search(r"CFOP\s+(?:sugerido)?\s*[:=]?\s*(\d{4})", resposta_limpa, re.IGNORECASE)
+        # CFOP (4 dígitos) - mais robusto
+        cfop_match = re.search(r"CFOP\s*:?=?\s*(?:sugerido)?\s*:?=?\s*(\d{4})", resposta_limpa, re.IGNORECASE)
+        if not cfop_match:
+            cfop_match = re.search(r"(\d{4})\s+(?:é|ser)\s+(?:o\s+)?CFOP", resposta_limpa, re.IGNORECASE)
         cfop_sugerido = cfop_match.group(1) if cfop_match else None
 
         # Confiança (0-100%)
@@ -201,7 +206,7 @@ def parsear_resposta_agente(resposta_texto, ncm_original=None, cest_original=Non
         if ibs_match:
             try:
                 aliquota_ibs = float(ibs_match.group(1).replace(",", "."))
-            except:
+            except (ValueError, TypeError, AttributeError):
                 pass
 
         # Alíquota CBS
@@ -210,7 +215,7 @@ def parsear_resposta_agente(resposta_texto, ncm_original=None, cest_original=Non
         if cbs_match:
             try:
                 aliquota_cbs = float(cbs_match.group(1).replace(",", "."))
-            except:
+            except (ValueError, TypeError, AttributeError):
                 pass
 
         # ===== EXTRAÇÃO 2: CAMPOS COM VARIAÇÕES =====
