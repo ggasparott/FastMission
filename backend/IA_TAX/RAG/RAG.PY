@@ -77,8 +77,7 @@ def retrieve_fiscal_context(
 		metadata_filter["ncm"] = ncm
 	if regime_empresa:
 		metadata_filter["regime_empresa_aplicavel"] = regime_empresa
-	if cnae_principal:
-		metadata_filter["cnae_prefixos"] = cnae_prefixes(cnae_principal)
+	# CNAE filtrado em Python, não no Pinecone (array causava erro no Pinecone)
 	if uf_origem:
 		metadata_filter["uf_origem"] = uf_origem
 	if uf_destino:

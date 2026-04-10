@@ -148,7 +148,22 @@ def chamar_agente(prompt):
     try:
         # Chama o agente com o prompt estruturado
         resposta_agente = FastTax.run(prompt)
-        return resposta_agente
+
+        # Extrair texto da resposta (RunOutput object)
+        # Tentar diferentes atributos
+        if hasattr(resposta_agente, 'content'):
+            return str(resposta_agente.content)
+        elif hasattr(resposta_agente, 'messages'):
+            # Se é uma lista de mensagens, extrair última
+            if isinstance(resposta_agente.messages, list) and resposta_agente.messages:
+                return str(resposta_agente.messages[-1])
+            return str(resposta_agente.messages)
+        else:
+            # Se tiver atributo 'message'
+            if hasattr(resposta_agente, 'message'):
+                return str(resposta_agente.message)
+            # Fallback: converter para string
+            return str(resposta_agente)
     except Exception as e:
         return {
             "status": "ERRO",

@@ -15,7 +15,6 @@ def consultar_rag_pergunta_usuario(pergunta_usuario, top_k=10):
 import re
 import warnings
 
-import prompts
 warnings.filterwarnings("ignore", message='Field "model_id" has conflict with protected namespace "model_"')
 warnings.filterwarnings("ignore", message='Field "model_provider" has conflict with protected namespace "model_"')
 
