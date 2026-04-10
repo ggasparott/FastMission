@@ -74,9 +74,15 @@ def chamar_ai_script(
         
         if resultado.returncode != 0:
             raise Exception(f"Script retornou erro: {resultado.stderr}")
-        
-        # Parsear resposta JSON
-        return json.loads(resultado.stdout)
+
+        # Parsear resposta JSON (remover linhas de debug antes do JSON)
+        stdout = resultado.stdout.strip()
+        for line in stdout.split('\n'):
+            if line.strip().startswith('{'):
+                return json.loads(line)
+
+        # Se não encontrou JSON, erro
+        raise Exception(f"Nenhum JSON encontrado em stdout: {stdout[:200]}")
     
     except subprocess.TimeoutExpired:
         return {
